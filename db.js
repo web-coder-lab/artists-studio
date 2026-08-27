@@ -38,12 +38,22 @@ function defaultDb() {
         { title: 'Events', text: 'Discreet coverage with an observational eye.' }
       ]
     },
+    theme: {
+      accent: '#c4a574',
+      background: '#0a0a0b',
+      text: '#f4f1ea',
+      font_display: 'Cormorant Garamond',
+      font_body: 'DM Sans'
+    },
     socials: {
       instagram: 'https://www.instagram.com/aartistsstudios?igsh=YTllNTA0cXZkOXJj',
       youtube: '',
       whatsapp: '923244015101',
       email: 'abdullahshah5919@gmail.com'
     },
+    draft: null,
+    published_at: null,
+    versions: [],
     portfolio: [
       {
         id: 1,
@@ -128,7 +138,7 @@ function defaultDb() {
     messages: [],
     media: [],
     calls: [],
-    _seq: { users: 1, portfolio: 4, reels: 3, contacts: 0, conversations: 0, messages: 0, media: 0, calls: 0 }
+    _seq: { users: 1, portfolio: 4, reels: 3, contacts: 0, conversations: 0, messages: 0, media: 0, calls: 0, versions: 0 }
   };
 }
 
@@ -142,7 +152,7 @@ function load() {
   // migrate phase-1 DBs missing CMS fields
   const base = defaultDb();
   let changed = false;
-  for (const key of ['site', 'socials', 'portfolio', 'reels', 'policies', 'pages', 'contacts', 'conversations', 'messages', 'media', 'calls']) {
+  for (const key of ['site', 'theme', 'socials', 'portfolio', 'reels', 'policies', 'pages', 'contacts', 'conversations', 'messages', 'media', 'calls', 'versions']) {
     if (!raw[key]) {
       raw[key] = base[key];
       changed = true;
@@ -154,6 +164,10 @@ function load() {
   if (raw._seq.messages == null) raw._seq.messages = (raw.messages || []).length;
   if (raw._seq.media == null) raw._seq.media = (raw.media || []).length;
   if (raw._seq.calls == null) raw._seq.calls = (raw.calls || []).length;
+  if (!raw.theme) raw.theme = base.theme;
+  if (!Array.isArray(raw.versions)) raw.versions = [];
+  if (raw._seq.versions == null) raw._seq.versions = raw.versions.length;
+  if (raw.draft === undefined) raw.draft = null;
   // Studio public contact (Phase setup)
   raw.socials = Object.assign({}, raw.socials || {}, {
     whatsapp: '923244015101',

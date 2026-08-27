@@ -220,6 +220,8 @@ async function boot() {
     $('who').textContent = '@' + user.username;
     $('loginGate').classList.add('hidden');
     $('adminApp').classList.remove('hidden');
+    document.getElementById('bottomNav')?.classList.remove('hidden');
+    loadDashboard();
     await loadConversations();
     await loadContacts();
     connectWs();
@@ -303,15 +305,7 @@ $('backList').addEventListener('click', () => {
   $('threadEmpty').classList.remove('hidden');
 });
 
-document.querySelectorAll('[data-tab]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-tab]').forEach((b) => b.classList.remove('active'));
-    btn.classList.add('active');
-    const tab = btn.dataset.tab;
-    $('tabChat').classList.toggle('hidden', tab !== 'chat');
-    $('tabContact').classList.toggle('hidden', tab !== 'contact');
-  });
-});
+/* old data-tab removed */
 
 async function loadContacts() {
   const data = await api('/admin/contacts');
@@ -375,3 +369,218 @@ document.getElementById('fileInputAdmin')?.addEventListener('change', (e) => {
   if (e.target.files[0]) { chip.textContent = e.target.files[0].name; chip.classList.remove('hidden'); }
   else chip.classList.add('hidden');
 });
+
+// ——— Phase 8–9 CMS panels ———
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + name));
+  document.querySelectorAll('[data-panel]').forEach((b) => b.classList.toggle('active', b.dataset.panel === name));
+  if (name === 'home') loadDashboard();
+  if (name === 'site') loadSiteForm();
+  if (name === 'socials') loadSocialsForm();
+  if (name === 'portfolio') loadFolioAdmin();
+  if (name === 'reels') loadReelsAdmin();
+  if (name === 'users') loadUsers();
+  if (name === 'versions') loadVersions();
+  if (name === 'contact') loadContacts();
+  if (name === 'chat') loadConversations();
+}
+
+document.querySelectorAll('[data-panel]').forEach((btn) => {
+  btn.addEventListener('click', () => showPanel(btn.dataset.panel));
+});
+
+async function loadDashboard() {
+  try {
+    const d = await api('/admin/dashboard');
+    $('stats').innerHTML = [
+      ['Users', d.users],
+      ['Chat unread', d.chat_unread],
+      ['Contact new', d.contacts_new],
+      ['Portfolio', d.portfolio],
+      ['Reels', d.reels],
+      ['Versions', d.versions]
+    ].map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+    $('dashHint').textContent = d.has_draft ? 'Unpublished draft changes' : (d.published_at ? 'Published ' + new Date(d.published_at).toLocaleString() : 'Ready');
+  } catch (e) { console.error(e); }
+}
+
+async function loadSiteForm() {
+  const data = await api('/admin/site');
+  const s = data.site || {};
+  const f = $('siteForm');
+  if (!f) return;
+  f.brand.value = s.brand || '';
+  f.tagline.value = s.tagline || '';
+  f.hero_title.value = s.hero_title || '';
+  f.hero_subtitle.value = s.hero_subtitle || '';
+  f.profile_name.value = s.profile_name || '';
+  f.profile_role.value = s.profile_role || '';
+  f.profile_bio.value = s.profile_bio || '';
+  f.about.value = s.about || '';
+  f.accent.value = (data.theme && data.theme.accent) || '#c4a574';
+}
+
+$('siteForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  await api('/admin/site', {
+    method: 'PUT',
+    body: JSON.stringify({
+      site: {
+        brand: f.brand.value,
+        tagline: f.tagline.value,
+        hero_title: f.hero_title.value,
+        hero_subtitle: f.hero_subtitle.value,
+        profile_name: f.profile_name.value,
+        profile_role: f.profile_role.value,
+        profile_bio: f.profile_bio.value,
+        about: f.about.value
+      },
+      theme: { accent: f.accent.value }
+    })
+  });
+  $('siteMsg').textContent = 'Saved (publish to snapshot version)';
+});
+
+async function loadSocialsForm() {
+  const data = await api('/admin/socials');
+  const s = data.socials || {};
+  const f = $('socialsForm');
+  if (!f) return;
+  f.whatsapp.value = s.whatsapp || '';
+  f.email.value = s.email || '';
+  f.instagram.value = s.instagram || '';
+  f.youtube.value = s.youtube || '';
+}
+
+$('socialsForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  await api('/admin/socials', {
+    method: 'PUT',
+    body: JSON.stringify({
+      socials: {
+        whatsapp: f.whatsapp.value,
+        email: f.email.value,
+        instagram: f.instagram.value,
+        youtube: f.youtube.value
+      }
+    })
+  });
+  $('socialsMsg').textContent = 'Socials saved';
+});
+
+async function loadFolioAdmin() {
+  const data = await api('/portfolio');
+  $('folioList').innerHTML = (data.items || []).map((it) => `
+    <div class="list-row">
+      <div><strong>${escape(it.title)}</strong><div class="muted">${escape(it.category || '')}</div></div>
+      <button type="button" class="btn btn-sm btn-ghost" data-del-folio="${it.id}">Delete</button>
+    </div>`).join('') || '<p class="muted">No items</p>';
+}
+
+$('folioAdd')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  await api('/admin/portfolio', {
+    method: 'POST',
+    body: JSON.stringify(Object.fromEntries(fd.entries()))
+  });
+  e.target.reset();
+  loadFolioAdmin();
+});
+
+$('folioList')?.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-del-folio]');
+  if (!b) return;
+  await api('/admin/portfolio/' + b.dataset.delFolio, { method: 'DELETE' });
+  loadFolioAdmin();
+});
+
+async function loadReelsAdmin() {
+  const data = await api('/reels');
+  $('reelList').innerHTML = (data.items || []).map((it) => `
+    <div class="list-row">
+      <div><strong>${escape(it.title)}</strong></div>
+      <button type="button" class="btn btn-sm btn-ghost" data-del-reel="${it.id}">Delete</button>
+    </div>`).join('') || '<p class="muted">No reels</p>';
+}
+
+$('reelAdd')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  await api('/admin/reels', {
+    method: 'POST',
+    body: JSON.stringify(Object.fromEntries(fd.entries()))
+  });
+  e.target.reset();
+  loadReelsAdmin();
+});
+
+$('reelList')?.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-del-reel]');
+  if (!b) return;
+  await api('/admin/reels/' + b.dataset.delReel, { method: 'DELETE' });
+  loadReelsAdmin();
+});
+
+async function loadUsers() {
+  const data = await api('/admin/users');
+  $('userList').innerHTML = (data.items || []).map((u) => `
+    <div class="list-row">
+      <div>
+        <strong>${escape(u.name)}</strong> · @${escape(u.username)}
+        <div class="muted">${escape(u.status)} · ${escape(u.created_at || '')}</div>
+      </div>
+      <button type="button" class="btn btn-sm btn-ghost" data-user="${u.id}" data-st="${u.status === 'active' ? 'disabled' : 'active'}">
+        ${u.status === 'active' ? 'Disable' : 'Enable'}
+      </button>
+    </div>`).join('') || '<p class="muted">No users</p>';
+}
+
+$('userList')?.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-user]');
+  if (!b) return;
+  await api('/admin/users/' + b.dataset.user, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: b.dataset.st })
+  });
+  loadUsers();
+});
+
+async function loadVersions() {
+  const data = await api('/admin/versions');
+  $('verMeta').textContent = data.has_draft
+    ? 'Draft pending publish'
+    : (data.published_at ? 'Last published ' + new Date(data.published_at).toLocaleString() : 'No versions yet');
+  $('verList').innerHTML = (data.items || []).map((v) => `
+    <div class="list-row">
+      <div><strong>${escape(v.label)}</strong><div class="muted">${escape(v.note || '')} · ${escape(v.created_at)}</div></div>
+      <button type="button" class="btn btn-sm btn-ghost" data-restore="${v.id}">Restore</button>
+    </div>`).join('') || '<p class="muted">No snapshots</p>';
+}
+
+async function doPublish() {
+  const note = prompt('Publish note (optional)') || '';
+  await api('/admin/publish', { method: 'POST', body: JSON.stringify({ note }) });
+  alert('Published');
+  loadVersions();
+  loadDashboard();
+}
+
+$('btnPublish')?.addEventListener('click', doPublish);
+$('btnPublishQuick')?.addEventListener('click', doPublish);
+
+$('verList')?.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-restore]');
+  if (!b) return;
+  if (!confirm('Restore this version to live site?')) return;
+  await api('/admin/versions/' + b.dataset.restore + '/restore', { method: 'POST', body: '{}' });
+  alert('Restored');
+  loadVersions();
+  loadSiteForm();
+  loadSocialsForm();
+});
+
+// show bottom nav when logged in — hook into existing boot success
+const _origBoot = typeof boot === 'function' ? boot : null;

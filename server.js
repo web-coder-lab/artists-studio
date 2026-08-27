@@ -130,13 +130,13 @@ function publicUser(u) {
 }
 
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'artists-studio', phase: 7 });
+  res.json({ status: 'ok', service: 'artists-studio', phase: 9 });
 });
 
 // ——— Public CMS ———
 app.get('/api/v1/site', (_req, res) => {
   const db = load();
-  res.json({ site: db.site, pages: db.pages });
+  res.json({ site: db.site, pages: db.pages, theme: db.theme || {} });
 });
 
 app.get('/api/v1/pages/:slug', (req, res) => {
@@ -539,6 +539,242 @@ app.post('/api/v1/conversations/:id/messages', auth, (req, res, next) => {
   save(db);
   try { notifyNewMessage(conv, msg); } catch (e) { console.error('ws notify', e.message); }
   res.status(201).json({ message: publicMessage(msg) });
+});
+
+
+
+// ——— Admin remote CMS + publish (Phases 8–9) ———
+function snapshotConfig(db) {
+  return {
+    site: db.site,
+    theme: db.theme,
+    socials: db.socials,
+    portfolio: db.portfolio,
+    reels: db.reels,
+    policies: db.policies,
+    pages: db.pages
+  };
+}
+
+function applyConfig(db, cfg) {
+  if (!cfg) return;
+  if (cfg.site) db.site = cfg.site;
+  if (cfg.theme) db.theme = cfg.theme;
+  if (cfg.socials) db.socials = cfg.socials;
+  if (cfg.portfolio) db.portfolio = cfg.portfolio;
+  if (cfg.reels) db.reels = cfg.reels;
+  if (cfg.policies) db.policies = cfg.policies;
+  if (cfg.pages) db.pages = cfg.pages;
+}
+
+app.get('/api/v1/admin/dashboard', auth, adminOnly, (req, res) => {
+  const db = load();
+  res.json({
+    users: (db.users || []).filter((u) => u.role !== 'admin').length,
+    contacts_new: (db.contacts || []).filter((c) => c.status === 'new').length,
+    conversations: (db.conversations || []).length,
+    chat_unread: (db.conversations || []).reduce((n, c) => n + (c.admin_unread || 0), 0),
+    portfolio: (db.portfolio || []).length,
+    reels: (db.reels || []).length,
+    versions: (db.versions || []).length,
+    published_at: db.published_at || null,
+    has_draft: !!db.draft
+  });
+});
+
+app.get('/api/v1/admin/site', auth, adminOnly, (req, res) => {
+  const db = load();
+  res.json({ site: db.site, theme: db.theme || {}, pages: db.pages });
+});
+
+app.put('/api/v1/admin/site', auth, adminOnly, (req, res) => {
+  const db = load();
+  const body = req.body || {};
+  if (body.site && typeof body.site === 'object') {
+    db.site = Object.assign({}, db.site, body.site);
+  }
+  if (body.theme && typeof body.theme === 'object') {
+    db.theme = Object.assign({}, db.theme || {}, body.theme);
+  }
+  if (body.pages && typeof body.pages === 'object') {
+    db.pages = Object.assign({}, db.pages, body.pages);
+  }
+  // keep working copy as draft until publish
+  db.draft = snapshotConfig(db);
+  save(db);
+  res.json({ site: db.site, theme: db.theme, pages: db.pages, draft: true });
+});
+
+app.get('/api/v1/admin/socials', auth, adminOnly, (req, res) => {
+  res.json({ socials: load().socials });
+});
+
+app.put('/api/v1/admin/socials', auth, adminOnly, (req, res) => {
+  const db = load();
+  const s = req.body?.socials || req.body || {};
+  db.socials = Object.assign({}, db.socials, {
+    whatsapp: s.whatsapp != null ? String(s.whatsapp).replace(/\D/g, '') : db.socials.whatsapp,
+    email: s.email != null ? String(s.email).trim() : db.socials.email,
+    instagram: s.instagram != null ? String(s.instagram).trim() : db.socials.instagram,
+    youtube: s.youtube != null ? String(s.youtube).trim() : db.socials.youtube
+  });
+  db.draft = snapshotConfig(db);
+  save(db);
+  res.json({ socials: db.socials });
+});
+
+app.put('/api/v1/admin/policies/:slug', auth, adminOnly, (req, res) => {
+  const db = load();
+  const slug = req.params.slug;
+  if (!db.policies[slug]) return res.status(404).json({ error: 'Unknown policy' });
+  const title = req.body?.title;
+  const body = req.body?.body;
+  if (title != null) db.policies[slug].title = String(title);
+  if (body != null) db.policies[slug].body = String(body);
+  db.draft = snapshotConfig(db);
+  save(db);
+  res.json({ policy: { slug, ...db.policies[slug] } });
+});
+
+app.post('/api/v1/admin/portfolio', auth, adminOnly, (req, res) => {
+  const db = load();
+  if (db._seq.portfolio == null) db._seq.portfolio = (db.portfolio || []).length;
+  const id = ++db._seq.portfolio;
+  const item = {
+    id,
+    title: String(req.body?.title || 'Untitled').trim(),
+    category: String(req.body?.category || '').trim(),
+    image: String(req.body?.image || '').trim(),
+    caption: String(req.body?.caption || '').trim()
+  };
+  db.portfolio.push(item);
+  db.draft = snapshotConfig(db);
+  save(db);
+  res.status(201).json({ item });
+});
+
+app.patch('/api/v1/admin/portfolio/:id', auth, adminOnly, (req, res) => {
+  const db = load();
+  const item = (db.portfolio || []).find((x) => x.id === +req.params.id);
+  if (!item) return res.status(404).json({ error: 'Not found' });
+  ['title', 'category', 'image', 'caption'].forEach((k) => {
+    if (req.body?.[k] != null) item[k] = String(req.body[k]);
+  });
+  db.draft = snapshotConfig(db);
+  save(db);
+  res.json({ item });
+});
+
+app.delete('/api/v1/admin/portfolio/:id', auth, adminOnly, (req, res) => {
+  const db = load();
+  db.portfolio = (db.portfolio || []).filter((x) => x.id !== +req.params.id);
+  db.draft = snapshotConfig(db);
+  save(db);
+  res.json({ ok: true });
+});
+
+app.post('/api/v1/admin/reels', auth, adminOnly, (req, res) => {
+  const db = load();
+  if (db._seq.reels == null) db._seq.reels = (db.reels || []).length;
+  const id = ++db._seq.reels;
+  const item = {
+    id,
+    title: String(req.body?.title || 'Reel').trim(),
+    thumb: String(req.body?.thumb || '').trim(),
+    url: String(req.body?.url || '#').trim()
+  };
+  db.reels.push(item);
+  db.draft = snapshotConfig(db);
+  save(db);
+  res.status(201).json({ item });
+});
+
+app.delete('/api/v1/admin/reels/:id', auth, adminOnly, (req, res) => {
+  const db = load();
+  db.reels = (db.reels || []).filter((x) => x.id !== +req.params.id);
+  db.draft = snapshotConfig(db);
+  save(db);
+  res.json({ ok: true });
+});
+
+app.get('/api/v1/admin/users', auth, adminOnly, (req, res) => {
+  const db = load();
+  const items = (db.users || [])
+    .filter((u) => u.role !== 'admin')
+    .map((u) => ({
+      id: u.id,
+      username: u.username,
+      name: u.name,
+      status: u.status,
+      created_at: u.created_at,
+      last_login: u.last_login
+    }));
+  res.json({ items });
+});
+
+app.patch('/api/v1/admin/users/:id', auth, adminOnly, (req, res) => {
+  const db = load();
+  const user = db.users.find((u) => u.id === +req.params.id);
+  if (!user || user.role === 'admin') return res.status(404).json({ error: 'Not found' });
+  const status = String(req.body?.status || '');
+  if (['active', 'disabled'].includes(status)) user.status = status;
+  save(db);
+  res.json({
+    user: {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      status: user.status
+    }
+  });
+});
+
+// Publish pipeline
+app.post('/api/v1/admin/publish', auth, adminOnly, (req, res) => {
+  const db = load();
+  if (!Array.isArray(db.versions)) db.versions = [];
+  if (db._seq.versions == null) db._seq.versions = db.versions.length;
+  const snap = snapshotConfig(db);
+  const id = ++db._seq.versions;
+  const version = {
+    id,
+    label: 'v' + id,
+    note: String(req.body?.note || '').trim(),
+    created_at: new Date().toISOString(),
+    config: snap
+  };
+  db.versions.push(version);
+  db.draft = null;
+  db.published_at = version.created_at;
+  // live config is already db fields
+  save(db);
+  res.json({ version: { id: version.id, label: version.label, created_at: version.created_at, note: version.note } });
+});
+
+app.get('/api/v1/admin/versions', auth, adminOnly, (req, res) => {
+  const db = load();
+  const items = (db.versions || [])
+    .slice()
+    .reverse()
+    .map((v) => ({ id: v.id, label: v.label, note: v.note, created_at: v.created_at }));
+  res.json({ items, published_at: db.published_at || null, has_draft: !!db.draft });
+});
+
+app.post('/api/v1/admin/versions/:id/restore', auth, adminOnly, (req, res) => {
+  const db = load();
+  const v = (db.versions || []).find((x) => x.id === +req.params.id);
+  if (!v || !v.config) return res.status(404).json({ error: 'Version not found' });
+  applyConfig(db, v.config);
+  db.draft = null;
+  db.published_at = new Date().toISOString();
+  save(db);
+  res.json({ ok: true, restored: v.label, site: db.site, socials: db.socials });
+});
+
+app.get('/api/v1/admin/preview', auth, adminOnly, (req, res) => {
+  const db = load();
+  const cfg = db.draft || snapshotConfig(db);
+  res.json({ preview: cfg, is_draft: !!db.draft });
 });
 
 
