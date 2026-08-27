@@ -4,13 +4,60 @@ const token = () => localStorage.getItem(TOKEN_KEY);
 const $ = (id) => document.getElementById(id);
 
 async function api(path, opts = {}) {
-  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  const headers = { ...(opts.headers || {}) };
+  if (!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
   if (token()) headers.Authorization = 'Bearer ' + token();
   const res = await fetch(API + path, { ...opts, headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Failed');
   return data;
 }
+
+function formatSize(n) {
+  n = +n || 0;
+  if (n < 1024) return n + ' B';
+  if (n < 1e6) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1e6).toFixed(1) + ' MB';
+}
+
+function attachmentHtml(att) {
+  if (!att) return '';
+  if (att.kind === 'image') return '<div class="att"><img data-auth-src="' + escape(att.url) + '" class="att-img" alt=""/></div>';
+  if (att.kind === 'video') return '<div class="att"><video data-auth-src="' + escape(att.url) + '" class="att-vid" controls></video></div>';
+  return '<div class="att file"><a data-auth-href="' + escape(att.url) + '" href="#">' + escape(att.name) + '</a> <span class="att-size">' + formatSize(att.size) + '</span></div>';
+}
+
+async function hydrateAuthMedia(root) {
+  const t = token();
+  if (!t || !root) return;
+  for (const img of root.querySelectorAll('img[data-auth-src]')) {
+    try {
+      const r = await fetch(img.getAttribute('data-auth-src'), { headers: { Authorization: 'Bearer ' + t } });
+      if (!r.ok) continue;
+      img.src = URL.createObjectURL(await r.blob());
+    } catch (_) {}
+  }
+  for (const vid of root.querySelectorAll('video[data-auth-src]')) {
+    try {
+      const r = await fetch(vid.getAttribute('data-auth-src'), { headers: { Authorization: 'Bearer ' + t } });
+      if (!r.ok) continue;
+      vid.src = URL.createObjectURL(await r.blob());
+    } catch (_) {}
+  }
+  for (const a of root.querySelectorAll('a[data-auth-href]')) {
+    a.onclick = async (e) => {
+      e.preventDefault();
+      const r = await fetch(a.getAttribute('data-auth-href'), { headers: { Authorization: 'Bearer ' + t } });
+      if (!r.ok) return;
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = a.textContent || 'file'; link.click();
+      URL.revokeObjectURL(url);
+    };
+  }
+}
+
 
 function escape(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -23,6 +70,56 @@ function fmtTime(iso) {
 let activeConv = null;
 let pollTimer = null;
 
+let socket = null;
+function connectWs() {
+  const t = token();
+  if (!t) return;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = proto + '//' + location.host + '/ws';
+  try { socket && socket.close(); } catch (_) {}
+  socket = new WebSocket(wsUrl);
+  socket.onopen = () => {
+    socket.send(JSON.stringify({ type: 'auth', token: t }));
+  };
+  socket.onmessage = (ev) => {
+    let data;
+    try { data = JSON.parse(ev.data); } catch { return; }
+    if (data.type === 'notification' && data.kind === 'message') {
+      showToast(data.name || data.username || 'User', data.body || 'New message', data.username);
+      loadConversations().catch(() => {});
+      if (activeConv === data.conversation_id) loadThread(activeConv, true).catch(() => {});
+    }
+    if (data.type === 'new_message') {
+      loadConversations().catch(() => {});
+      if (activeConv === data.conversation_id) loadThread(activeConv, true).catch(() => {});
+    }
+  };
+  socket.onclose = () => setTimeout(connectWs, 4000);
+}
+
+function showToast(name, body, username) {
+  let host = document.getElementById('toastHost');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'toastHost';
+    host.style.cssText = 'position:fixed;top:16px;right:16px;z-index:99;display:flex;flex-direction:column;gap:8px;max-width:320px';
+    document.body.appendChild(host);
+  }
+  const el = document.createElement('div');
+  el.style.cssText = 'background:#18181b;border:1px solid rgba(196,165,116,.35);border-radius:14px;padding:12px 14px;box-shadow:0 12px 40px rgba(0,0,0,.4);color:#f4f1ea;font-size:.9rem';
+  el.innerHTML = '<strong style="color:#c4a574">' + escape(name) + (username ? ' · @' + escape(username) : '') + '</strong><div style="color:#9c978c;margin-top:4px">' + escape(body) + '</div>';
+  host.appendChild(el);
+  setTimeout(() => el.remove(), 6000);
+  // browser notification if permitted
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    try { new Notification(name + (username ? ' · @' + username : ''), { body: body }); } catch (_) {}
+  } else if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+
+
 async function boot() {
   if (!token()) return;
   try {
@@ -33,11 +130,11 @@ async function boot() {
     $('adminApp').classList.remove('hidden');
     await loadConversations();
     await loadContacts();
+    connectWs();
     clearInterval(pollTimer);
     pollTimer = setInterval(() => {
       loadConversations().catch(() => {});
-      if (activeConv) loadThread(activeConv, false).catch(() => {});
-    }, 4000);
+    }, 15000);
   } catch {
     localStorage.removeItem(TOKEN_KEY);
   }
@@ -73,12 +170,14 @@ async function loadThread(id, scroll = true) {
     const mine = m.sender_role === 'admin';
     return `<div class="bubble-row ${mine ? 'mine' : 'theirs'}">
       <div class="bubble ${mine ? 'mine' : 'theirs'}">
-        <div>${escape(m.body)}</div>
+        ${m.body ? '<div>' + escape(m.body) + '</div>' : ''}
+        ${attachmentHtml(m.attachment)}
         <div class="meta"><span>${fmtTime(m.created_at)}</span></div>
       </div>
     </div>`;
   }).join('') || '<div class="chat-empty">No messages</div>';
   if (scroll) $('thread').scrollTop = $('thread').scrollHeight;
+  hydrateAuthMedia($('thread'));
   await loadConversations();
 }
 
@@ -93,12 +192,16 @@ $('compose').addEventListener('submit', async (e) => {
   if (!activeConv) return;
   const fd = new FormData(e.target);
   const body = String(fd.get('body') || '').trim();
-  if (!body) return;
+  const file = fd.get('file');
+  const hasFile = file && file.size;
+  if (!body && !hasFile) return;
+  const out = new FormData();
+  if (body) out.append('body', body);
+  if (hasFile) out.append('file', file);
   e.target.reset();
-  await api('/conversations/' + activeConv + '/messages', {
-    method: 'POST',
-    body: JSON.stringify({ body })
-  });
+  const chip = document.getElementById('fileChipAdmin');
+  if (chip) chip.classList.add('hidden');
+  await api('/conversations/' + activeConv + '/messages', { method: 'POST', body: out });
   await loadThread(activeConv);
 });
 
@@ -165,6 +268,7 @@ $('adminLogin').addEventListener('submit', async (e) => {
     if (data.user.role !== 'admin') throw new Error('Admin only');
     localStorage.setItem(TOKEN_KEY, data.token);
     boot();
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission();
   } catch (err) {
     $('loginErr').textContent = err.message;
     $('loginErr').classList.remove('hidden');
@@ -172,3 +276,10 @@ $('adminLogin').addEventListener('submit', async (e) => {
 });
 
 boot();
+
+document.getElementById('fileInputAdmin')?.addEventListener('change', (e) => {
+  const chip = document.getElementById('fileChipAdmin');
+  if (!chip) return;
+  if (e.target.files[0]) { chip.textContent = e.target.files[0].name; chip.classList.remove('hidden'); }
+  else chip.classList.add('hidden');
+});

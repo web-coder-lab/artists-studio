@@ -1,3 +1,7 @@
 node_modules/
 data/studio.json
 .env
+uploads/private/*
+!uploads/private/.gitkeep
+uploads/public/*
+!uploads/public/.gitkeep

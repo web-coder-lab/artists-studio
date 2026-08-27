@@ -5,6 +5,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const { load, save } = require('./db');
+const fs = require('fs');
+const multer = require('multer');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'artists-studio-phase1-dev-secret-change-me';
@@ -14,6 +17,42 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(ROOT, 'public')));
+
+const uploadPrivateDir = path.join(ROOT, 'uploads', 'private');
+const uploadPublicDir = path.join(ROOT, 'uploads', 'public');
+fs.mkdirSync(uploadPrivateDir, { recursive: true });
+fs.mkdirSync(uploadPublicDir, { recursive: true });
+
+const privateStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadPrivateDir),
+  filename: (_req, file, cb) => {
+    const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+    cb(null, Date.now() + '-' + crypto.randomBytes(4).toString('hex') + '-' + safe);
+  }
+});
+
+const ALLOWED_MIME = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+  'video/mp4', 'video/webm',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain'
+]);
+
+function fileFilter(_req, file, cb) {
+  if (ALLOWED_MIME.has(file.mimetype) || /\.(jpe?g|png|webp|gif|mp4|webm|pdf|docx?|txt)$/i.test(file.originalname)) {
+    cb(null, true);
+  } else cb(new Error('File type not allowed'));
+}
+
+const uploadChat = multer({
+  storage: privateStorage,
+  limits: { fileSize: 40 * 1024 * 1024, files: 1 },
+  fileFilter
+});
+
+
 
 const contactLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -91,7 +130,7 @@ function publicUser(u) {
 }
 
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'artists-studio', phase: 4 });
+  res.json({ status: 'ok', service: 'artists-studio', phase: 6 });
 });
 
 // ——— Public CMS ———
@@ -326,7 +365,7 @@ function getOrCreateUserConversation(db, user) {
 }
 
 function publicMessage(m) {
-  return {
+  const out = {
     id: m.id,
     conversation_id: m.conversation_id,
     sender_role: m.sender_role,
@@ -334,9 +373,28 @@ function publicMessage(m) {
     sender_name: m.sender_name,
     body: m.body,
     status: m.status,
-    created_at: m.created_at
+    created_at: m.created_at,
+    attachment: null
   };
+  if (m.attachment) {
+    out.attachment = {
+      id: m.attachment.id,
+      name: m.attachment.name,
+      mime: m.attachment.mime,
+      size: m.attachment.size,
+      kind: m.attachment.kind,
+      url: '/api/v1/media/private/' + m.attachment.id
+    };
+  }
+  return out;
 }
+
+function attachmentKind(mime, name) {
+  if ((mime || '').startsWith('image/')) return 'image';
+  if ((mime || '').startsWith('video/')) return 'video';
+  return 'file';
+}
+
 
 // User: ensure conversation + list (single artist thread)
 app.get('/api/v1/conversations', auth, (req, res) => {
@@ -410,12 +468,20 @@ app.get('/api/v1/conversations/:id/messages', auth, (req, res) => {
   });
 });
 
-app.post('/api/v1/conversations/:id/messages', auth, (req, res) => {
+app.post('/api/v1/conversations/:id/messages', auth, (req, res, next) => {
+  uploadChat.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
+    next();
+  });
+}, (req, res) => {
   const body = String(req.body?.body || '').trim();
-  if (!body || body.length < 1) return res.status(400).json({ error: 'Message required' });
+  const hasFile = !!req.file;
+  if (!body && !hasFile) return res.status(400).json({ error: 'Message or file required' });
   if (body.length > 4000) return res.status(400).json({ error: 'Message too long' });
   const db = load();
   ensureChatSeq(db);
+  if (!db.media) db.media = [];
+  if (db._seq.media == null) db._seq.media = db.media.length;
   const id = +req.params.id;
   let conv = db.conversations.find((c) => c.id === id);
   if (!conv && req.user.role !== 'admin') {
@@ -425,28 +491,53 @@ app.post('/api/v1/conversations/:id/messages', auth, (req, res) => {
   if (req.user.role !== 'admin' && conv.user_id !== req.user.id) {
     return res.status(403).json({ error: 'Forbidden' });
   }
+  let attachment = null;
+  if (hasFile) {
+    const midMedia = ++db._seq.media;
+    attachment = {
+      id: midMedia,
+      name: req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120),
+      mime: req.file.mimetype,
+      size: req.file.size,
+      kind: attachmentKind(req.file.mimetype, req.file.originalname),
+      storage: req.file.filename,
+      owner_id: req.user.id,
+      conversation_id: conv.id,
+      visibility: 'private',
+      created_at: new Date().toISOString()
+    };
+    db.media.push(attachment);
+  }
   const mid = ++db._seq.messages;
+  const preview = body || (attachment ? ('📎 ' + attachment.name) : '');
   const msg = {
     id: mid,
     conversation_id: conv.id,
     sender_role: req.user.role === 'admin' ? 'admin' : 'user',
     sender_id: req.user.id,
     sender_name: req.user.name,
-    body,
+    body: body || '',
+    attachment: attachment ? {
+      id: attachment.id,
+      name: attachment.name,
+      mime: attachment.mime,
+      size: attachment.size,
+      kind: attachment.kind
+    } : null,
     status: 'sent',
     created_at: new Date().toISOString()
   };
   db.messages.push(msg);
-  conv.last_message = body.length > 80 ? body.slice(0, 80) + '…' : body;
+  conv.last_message = preview.length > 80 ? preview.slice(0, 80) + '…' : preview;
   conv.last_at = msg.created_at;
   if (msg.sender_role === 'user') conv.admin_unread = (conv.admin_unread || 0) + 1;
   else conv.user_unread = (conv.user_unread || 0) + 1;
-  // sync name/username
   if (msg.sender_role === 'user') {
     conv.name = req.user.name;
     conv.username = req.user.username;
   }
   save(db);
+  try { notifyNewMessage(conv, msg); } catch (e) { console.error('ws notify', e.message); }
   res.status(201).json({ message: publicMessage(msg) });
 });
 
@@ -481,6 +572,7 @@ app.post('/api/v1/chat/artist', auth, (req, res) => {
   conv.name = req.user.name;
   conv.username = req.user.username;
   save(db);
+  try { notifyNewMessage(conv, msg); } catch (e) { console.error('ws notify', e.message); }
   res.status(201).json({ conversation_id: conv.id, message: publicMessage(msg) });
 });
 
@@ -494,4 +586,104 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(ROOT, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => console.log("Artist's Studio on :" + PORT));
+
+// ——— Realtime WebSocket (Phase 6) ———
+const http = require('http');
+const { WebSocketServer } = require('ws');
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server, path: '/ws' });
+
+/** @type {Map<WebSocket, { userId: number, role: string, username: string, name: string }>} */
+const wsClients = new Map();
+
+function wsSend(ws, payload) {
+  if (ws.readyState === 1) ws.send(JSON.stringify(payload));
+}
+
+function broadcastAdmin(payload) {
+  for (const [ws, meta] of wsClients) {
+    if (meta.role === 'admin') wsSend(ws, payload);
+  }
+}
+
+function broadcastUser(userId, payload) {
+  for (const [ws, meta] of wsClients) {
+    if (meta.userId === userId) wsSend(ws, payload);
+  }
+}
+
+function notifyNewMessage(conv, msg) {
+  const preview = msg.body || (msg.attachment ? ('📎 ' + (msg.attachment.name || 'file')) : '');
+  const payload = {
+    type: 'new_message',
+    conversation_id: conv.id,
+    message: publicMessage(msg),
+    conversation: {
+      id: conv.id,
+      name: conv.name,
+      username: conv.username,
+      last_message: conv.last_message,
+      last_at: conv.last_at,
+      admin_unread: conv.admin_unread,
+      user_unread: conv.user_unread
+    }
+  };
+  if (msg.sender_role === 'user') {
+    broadcastAdmin(payload);
+    broadcastAdmin({
+      type: 'notification',
+      kind: 'message',
+      title: conv.name || conv.username || 'User',
+      body: preview,
+      username: conv.username,
+      name: conv.name,
+      conversation_id: conv.id,
+      at: msg.created_at
+    });
+  } else {
+    broadcastUser(conv.user_id, payload);
+  }
+}
+
+wss.on('connection', (ws) => {
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
+  ws.on('message', (raw) => {
+    let data;
+    try { data = JSON.parse(String(raw)); } catch { return; }
+    if (data.type === 'auth' && data.token) {
+      try {
+        const payload = jwt.verify(data.token, JWT_SECRET);
+        const db = load();
+        const user = db.users.find((u) => u.id === payload.sub);
+        if (!user || user.status !== 'active') {
+          wsSend(ws, { type: 'auth_error', error: 'Unauthorized' });
+          return;
+        }
+        wsClients.set(ws, {
+          userId: user.id,
+          role: user.role,
+          username: user.username,
+          name: user.name
+        });
+        wsSend(ws, { type: 'auth_ok', user: { id: user.id, username: user.username, role: user.role } });
+      } catch {
+        wsSend(ws, { type: 'auth_error', error: 'Invalid token' });
+      }
+      return;
+    }
+    if (data.type === 'ping') wsSend(ws, { type: 'pong' });
+  });
+  ws.on('close', () => wsClients.delete(ws));
+});
+
+setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) { ws.terminate(); continue; }
+    ws.isAlive = false;
+    ws.ping();
+  }
+}, 30000);
+
+server.listen(PORT, () => console.log("Artist's Studio on :" + PORT + " (HTTP + WS /ws)"));
+

@@ -1,22 +1,22 @@
 # Artist's Studio
 
-## Live
 https://artists-studio.onrender.com
 
-## Phases
+## Phases 1–6
 1. Auth  
 2. Public multi-page CMS + WhatsApp prefill  
-3. Contact form + admin Contact queue  
-4. **Private chat (WhatsApp-style)** — user ↔ studio  
+3. Contact form  
+4. Private chat (WhatsApp-style)  
+5. Chat media (image / video / file) — private, auth-only  
+6. **WebSocket realtime + admin toast notifications**
 
-### Chat API
-- `GET  /api/v1/conversations`
-- `GET  /api/v1/conversations/:id/messages`
-- `POST /api/v1/conversations/:id/messages` `{ "body": "..." }`
-- `POST /api/v1/chat/artist` — user open/create thread
+### Realtime
+- `WS /ws` — send `{ "type": "auth", "token": "<jwt>" }`
+- Events: `auth_ok`, `new_message`, `notification`
 
-### UI
-- User: `/chat.html`
-- Admin: `/admin.html` → Chat Inbox + Contact form tabs
+### Media
+- `POST /api/v1/conversations/:id/messages` multipart: `body`, `file`
+- `GET /api/v1/media/private/:id` (Bearer required)
 
-Admin seed: `admin` / `admin123`
+Admin: `admin` / `admin123`  
+Chat: `/chat.html` · Admin: `/admin.html`

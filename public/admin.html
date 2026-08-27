@@ -56,7 +56,11 @@
                 </div>
                 <div class="chat-thread" id="thread"></div>
                 <form class="chat-compose" id="compose">
-                  <textarea name="body" rows="1" placeholder="Reply…" required></textarea>
+                  <label class="attach-btn" title="Attach">+
+                    <input type="file" name="file" id="fileInputAdmin" accept="image/*,video/mp4,video/webm,.pdf,.doc,.docx,.txt"/>
+                  </label>
+                  <span class="file-chip hidden" id="fileChipAdmin"></span>
+                  <textarea name="body" rows="1" placeholder="Reply…"></textarea>
                   <button type="submit">Send</button>
                 </form>
               </div>

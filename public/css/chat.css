@@ -110,3 +110,20 @@
   align-self: center; font-size: 0.72rem; color: var(--chat-muted);
   background: rgba(255,255,255,0.04); padding: 4px 10px; border-radius: 999px; margin: 6px 0;
 }
+.att{margin-top:8px}
+.att-img{max-width:100%;max-height:240px;border-radius:10px;display:block}
+.att-vid{max-width:100%;max-height:240px;border-radius:10px;display:block;background:#000}
+.att.file{font-size:.88rem}
+.att.file a{color:var(--chat-accent)}
+.att-size{color:var(--chat-muted);margin-left:6px;font-size:.75rem}
+.attach-btn{
+  width:40px;height:40px;border-radius:12px;border:1px solid var(--chat-line);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  color:var(--chat-accent);font-size:1.25rem;font-weight:600;flex-shrink:0;
+  position:relative;overflow:hidden;
+}
+.attach-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.file-chip{
+  font-size:.75rem;color:var(--chat-muted);max-width:90px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;align-self:center;
+}
