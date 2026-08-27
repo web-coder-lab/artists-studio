@@ -37,15 +37,15 @@ function escapeHtml(s) {
 
 function navHtml() {
   const links = [
-    ['/', 'home', '⌂'],
-    ['/about.html', 'about', '◎'],
-    ['/portfolio.html', 'portfolio', '▣'],
-    ['/reels.html', 'reels', '▶'],
-    ['/services.html', 'services', '✦'],
-    ['/contact.html', 'contact', '✉'],
+    ['/', 'home', 'Home', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>`],
+    ['/about.html', 'about', 'About', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 19.5c1.8-3.2 4.2-4.5 6.5-4.5s4.7 1.3 6.5 4.5"/></svg>`],
+    ['/portfolio.html', 'portfolio', 'Portfolio', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/></svg>`],
+    ['/reels.html', 'reels', 'Reels', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="m10 8 6 4-6 4V8z"/></svg>`],
+    ['/services.html', 'services', 'Services', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 13.8 9H19l-4 3.2 1.5 5.3L12 14.8 7.5 17.5 9 12.2 5 9h5.2L12 3.5z"/></svg>`],
+    ['/contact.html', 'contact', 'Contact', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>`],
   ];
-  const linkEls = links.map(([href, key, label]) =>
-    `<a href="${href}" class="${page === key ? 'active' : ''}">${label}</a>`
+  const linkEls = links.map(([href, key, label, ico]) =>
+    `<a href="${href}" class="${page === key ? 'active' : ''}" title="${label}" aria-label="${label}">${ico}<span class="nav-label">${label}</span></a>`
   ).join('');
   return `
   <header class="nav">
@@ -59,7 +59,7 @@ function navHtml() {
 function footHtml() {
   return `<footer class="foot">
     <span>Artist's Studio</span>
-    <span class="muted">◆</span>
+    <span class="muted">— private atelier</span>
   </footer>`;
 }
 
@@ -293,27 +293,40 @@ function bindGlobal() {
   });
   $('authForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    $('authError')?.classList.add('hidden');
+    const err = $('authError');
+    err.classList.add('hidden');
     const fd = new FormData(e.target);
-    const body = { username: fd.get('username'), password: fd.get('password') };
-    if (mode === 'register') body.name = fd.get('name');
-    $('authSubmit').disabled = true;
+    const username = String(fd.get('username') || '').trim();
+    const password = String(fd.get('password') || '');
+    const body = { username, password };
+    if (mode === 'register') {
+      body.name = String(fd.get('name') || '').trim();
+      if (!body.name) {
+        err.textContent = 'Name is required to join';
+        err.classList.remove('hidden');
+        return;
+      }
+    }
+    if (!username || !password) {
+      err.textContent = 'Username and password are required';
+      err.classList.remove('hidden');
+      return;
+    }
     try {
       const path = mode === 'register' ? '/auth/register' : '/auth/login';
-      const data = await api(path, { method: 'POST', body: JSON.stringify(body) });
+      const data = await api(path, { method: 'POST', body });
+      if (!data.token) throw new Error('No session returned');
       setToken(data.token);
+      if (window.StudioAPI) window.StudioAPI.setToken(data.token);
       currentUser = data.user;
       closeModal();
       document.getElementById('authWall')?.remove();
       renderNavAuth();
       location.reload();
-    } catch (err) {
-      if ($('authError')) {
-        $('authError').textContent = err.message;
-        $('authError').classList.remove('hidden');
-      }
-    } finally {
-      $('authSubmit').disabled = false;
+    } catch (ex) {
+      const msg = (ex && ex.message) ? ex.message : 'Could not sign in';
+      err.textContent = msg;
+      err.classList.remove('hidden');
     }
   });
 }

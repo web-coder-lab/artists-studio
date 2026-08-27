@@ -98,3 +98,12 @@ main{flex:1;max-width:1040px;width:100%;margin:0 auto;padding:28px 20px 72px}
 .pol-list article{padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--bg-elev)}
 .pol-list h3{margin:0 0 8px;font-family:var(--font-display);font-weight:500;font-size:1.35rem}
 .pol-list p{margin:0;color:var(--muted)}
+
+.nav-links a{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px}
+.nav-ico{width:18px;height:18px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.nav-label{font-size:.78rem;letter-spacing:.02em}
+@media(max-width:720px){
+  .nav-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+  .nav-links a{padding:10px}
+  .nav-ico{width:22px;height:22px}
+}
