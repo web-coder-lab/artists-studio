@@ -20,7 +20,110 @@ function defaultDb() {
         last_login: null
       }
     ],
-    _seq: { users: 1 }
+    site: {
+      brand: "Artist's Studio",
+      tagline: 'Photography · Direction · Craft',
+      hero_title: 'A quiet space for work that holds attention.',
+      hero_subtitle:
+        "Artist's Studio is a private atelier online — portfolio, conversation, and collaboration under one calm roof.",
+      profile_name: 'Studio Artist',
+      profile_role: 'Photographer & Director',
+      profile_bio:
+        'I make images that feel still and honest — portraits, editorial, and quiet documentary work. Every frame is considered.',
+      about:
+        "Artist's Studio began as a small practice and grew into a place for clients and collaborators to meet the work properly — not as a feed, but as a room.",
+      services: [
+        { title: 'Portrait', text: 'Studio and location portraits with natural direction.' },
+        { title: 'Editorial', text: 'Story-led series for publications and brands.' },
+        { title: 'Events', text: 'Discreet coverage with an observational eye.' }
+      ]
+    },
+    socials: {
+      instagram: 'https://instagram.com/',
+      youtube: '',
+      whatsapp: '923001234567',
+      email: 'hello@artistsstudio.example'
+    },
+    portfolio: [
+      {
+        id: 1,
+        title: 'Morning light',
+        category: 'Portrait',
+        image:
+          'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&q=80',
+        caption: 'Soft window light, single subject.'
+      },
+      {
+        id: 2,
+        title: 'City grain',
+        category: 'Documentary',
+        image:
+          'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&q=80',
+        caption: 'Street study at dusk.'
+      },
+      {
+        id: 3,
+        title: 'Still table',
+        category: 'Still life',
+        image:
+          'https://images.unsplash.com/photo-1493867387794-411ddf1f9f46?w=800&q=80',
+        caption: 'Objects in quiet composition.'
+      },
+      {
+        id: 4,
+        title: 'Open road',
+        category: 'Travel',
+        image:
+          'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=80',
+        caption: 'Landscape held in one frame.'
+      }
+    ],
+    reels: [
+      {
+        id: 1,
+        title: 'BTS — portrait set',
+        thumb:
+          'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=600&q=80',
+        url: '#'
+      },
+      {
+        id: 2,
+        title: 'Process notes',
+        thumb:
+          'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&q=80',
+        url: '#'
+      },
+      {
+        id: 3,
+        title: 'Light tests',
+        thumb:
+          'https://images.unsplash.com/photo-1471341971476-ae15ff5dd4ea?w=600&q=80',
+        url: '#'
+      }
+    ],
+    policies: {
+      privacy: {
+        title: 'Privacy Policy',
+        body: 'We collect only what is needed to run your account and conversations. Passwords are hashed. Private media is not public. Contact submissions are visible only to the studio admin.'
+      },
+      terms: {
+        title: 'Terms & Conditions',
+        body: "By using Artist's Studio you agree to use the platform respectfully. Accounts may be disabled for abuse. Bookings and commercial work may have separate written agreements."
+      },
+      disclaimer: {
+        title: 'Disclaimer',
+        body: 'Portfolio images are representative. Availability, pricing, and delivery timelines are confirmed directly with the studio.'
+      }
+    },
+    pages: {
+      home: { slug: 'home', title: 'Home', published: true },
+      about: { slug: 'about', title: 'About', published: true },
+      portfolio: { slug: 'portfolio', title: 'Portfolio', published: true },
+      reels: { slug: 'reels', title: 'Reels', published: true },
+      services: { slug: 'services', title: 'Services', published: true },
+      contact: { slug: 'contact', title: 'Contact', published: true }
+    },
+    _seq: { users: 1, portfolio: 4, reels: 3 }
   };
 }
 
@@ -30,7 +133,19 @@ function load() {
     save(d);
     return d;
   }
-  return JSON.parse(fs.readFileSync(dbFile, 'utf8'));
+  const raw = JSON.parse(fs.readFileSync(dbFile, 'utf8'));
+  // migrate phase-1 DBs missing CMS fields
+  const base = defaultDb();
+  let changed = false;
+  for (const key of ['site', 'socials', 'portfolio', 'reels', 'policies', 'pages']) {
+    if (!raw[key]) {
+      raw[key] = base[key];
+      changed = true;
+    }
+  }
+  if (!raw._seq) raw._seq = base._seq;
+  if (changed) save(raw);
+  return raw;
 }
 
 function save(db) {

@@ -13,66 +13,106 @@
 <body>
   <div class="grain" aria-hidden="true"></div>
   <header class="nav">
-    <a class="brand" href="/">Artist's Studio</a>
-    <nav class="nav-actions" id="navActions">
+    <a class="brand" href="#home" data-nav="home">Artist's Studio</a>
+    <button type="button" class="nav-toggle" id="navToggle" aria-label="Menu">Menu</button>
+    <nav class="nav-links" id="navLinks">
+      <a href="#home" data-nav="home">Home</a>
+      <a href="#about" data-nav="about">About</a>
+      <a href="#portfolio" data-nav="portfolio">Portfolio</a>
+      <a href="#reels" data-nav="reels">Reels</a>
+      <a href="#services" data-nav="services">Services</a>
+      <a href="#contact" data-nav="contact">Contact</a>
+    </nav>
+    <div class="nav-actions" id="navActions">
       <button type="button" class="linkish" data-open="login">Sign in</button>
       <button type="button" class="btn btn-sm" data-open="register">Join</button>
-    </nav>
+    </div>
   </header>
 
   <main>
-    <!-- Guest hero -->
-    <section class="hero" id="viewGuest">
+    <section class="hero section" id="home">
       <div class="hero-copy">
-        <p class="eyebrow">Photography · Direction · Craft</p>
-        <h1>A quiet space for work that holds attention.</h1>
-        <p class="lede">Artist's Studio is a private atelier online — portfolio, conversation, and collaboration under one calm roof.</p>
+        <p class="eyebrow" id="tagline">Photography · Direction · Craft</p>
+        <h1 id="heroTitle">A quiet space for work that holds attention.</h1>
+        <p class="lede" id="heroSubtitle"></p>
         <div class="hero-cta">
-          <button type="button" class="btn" data-open="register">Create account</button>
-          <button type="button" class="btn btn-ghost" data-open="login">Sign in</button>
+          <a class="btn" href="#portfolio">View work</a>
+          <button type="button" class="btn btn-ghost" id="btnWhatsAppHero">WhatsApp</button>
         </div>
       </div>
-      <div class="hero-frame" aria-hidden="true">
+      <div class="hero-frame">
         <div class="frame-inner">
-          <span class="frame-label">Phase 1 · Identity</span>
-          <p>Register with username, name & password. Your session is secured with a token — passwords are never stored in plain text.</p>
+          <span class="frame-label" id="profileRole">Photographer & Director</span>
+          <h2 class="frame-name" id="profileName">Studio Artist</h2>
+          <p id="profileBio"></p>
         </div>
       </div>
     </section>
 
-    <!-- Logged-in dashboard shell -->
-    <section class="dash hidden" id="viewDash">
-      <div class="dash-head">
-        <p class="eyebrow">Welcome back</p>
-        <h2 id="dashName">—</h2>
-        <p class="muted" id="dashMeta"></p>
+    <section class="section" id="about">
+      <p class="eyebrow">About</p>
+      <h2 class="section-title">The studio</h2>
+      <p class="prose" id="aboutText"></p>
+    </section>
+
+    <section class="section" id="portfolio">
+      <p class="eyebrow">Selected work</p>
+      <h2 class="section-title">Portfolio</h2>
+      <div class="folio-grid" id="folioGrid"></div>
+    </section>
+
+    <section class="section" id="reels">
+      <p class="eyebrow">Motion</p>
+      <h2 class="section-title">Reels</h2>
+      <div class="reels-row" id="reelsRow"></div>
+    </section>
+
+    <section class="section" id="services">
+      <p class="eyebrow">Offerings</p>
+      <h2 class="section-title">Services</h2>
+      <div class="svc-grid" id="svcGrid"></div>
+    </section>
+
+    <section class="section" id="contact">
+      <p class="eyebrow">Connect</p>
+      <h2 class="section-title">Contact</h2>
+      <p class="muted contact-lead">Reach the studio on WhatsApp. Your name stays in the message so we know who you are.</p>
+      <div class="contact-actions">
+        <button type="button" class="btn" id="btnWhatsApp">Message on WhatsApp</button>
+        <a class="btn btn-ghost" id="btnEmail" href="#">Email</a>
+        <a class="btn btn-ghost" id="btnIg" href="#" target="_blank" rel="noopener">Instagram</a>
       </div>
+      <p class="hint muted">Form inbox & private chat arrive in later phases.</p>
+    </section>
+
+    <section class="section dash hidden" id="viewDash">
+      <p class="eyebrow">Welcome back</p>
+      <h2 class="section-title" id="dashName">—</h2>
+      <p class="muted" id="dashMeta"></p>
       <div class="dash-grid">
         <article class="tile">
           <h3>My Profile</h3>
-          <p>Username & display name from your account.</p>
           <p class="tile-val" id="tileProfile">—</p>
         </article>
-        <article class="tile soon">
-          <h3>Contact Artist</h3>
-          <p>Private messages & media — Phase 4.</p>
-        </article>
-        <article class="tile soon">
-          <h3>Messages</h3>
-          <p>Conversation history — upcoming.</p>
-        </article>
-        <article class="tile soon">
-          <h3>Calls</h3>
-          <p>Voice & video requests — Phase 7.</p>
-        </article>
+        <article class="tile soon"><h3>Contact Artist</h3><p>Phase 4</p></article>
+        <article class="tile soon"><h3>Messages</h3><p>Upcoming</p></article>
+        <article class="tile soon"><h3>Calls</h3><p>Phase 7</p></article>
       </div>
       <button type="button" class="btn btn-ghost" id="btnLogout">Sign out</button>
+    </section>
+
+    <section class="section policies" id="policies">
+      <div class="pol-links" id="polLinks"></div>
+      <article class="pol-body hidden" id="polBody">
+        <h3 id="polTitle"></h3>
+        <p id="polText"></p>
+      </article>
     </section>
   </main>
 
   <footer class="foot">
-    <span>Artist's Studio</span>
-    <span class="muted">Phase 1 · Auth</span>
+    <span id="footBrand">Artist's Studio</span>
+    <span class="muted">Phase 2 · Public site</span>
   </footer>
 
   <!-- Auth modal -->
@@ -83,24 +123,34 @@
       <h2 id="authTitle">Sign in</h2>
       <p class="muted" id="authSub">Welcome back to the studio.</p>
       <form id="authForm" class="form">
-        <label>
-          <span>Username</span>
-          <input name="username" autocomplete="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+" placeholder="e.g. ali_khan"/>
+        <label><span>Username</span>
+          <input name="username" autocomplete="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+"/>
         </label>
-        <label id="nameField" class="hidden">
-          <span>Name</span>
-          <input name="name" autocomplete="name" minlength="2" maxlength="60" placeholder="Your full name"/>
+        <label id="nameField" class="hidden"><span>Name</span>
+          <input name="name" autocomplete="name" minlength="2" maxlength="60"/>
         </label>
-        <label>
-          <span>Password</span>
-          <input name="password" type="password" autocomplete="current-password" required minlength="6" placeholder="••••••••"/>
+        <label><span>Password</span>
+          <input name="password" type="password" required minlength="6"/>
         </label>
         <p class="form-error hidden" id="authError"></p>
         <button type="submit" class="btn btn-block" id="authSubmit">Sign in</button>
       </form>
-      <p class="switch">
-        <button type="button" class="linkish" id="authSwitch">Need an account? Join</button>
-      </p>
+      <p class="switch"><button type="button" class="linkish" id="authSwitch">Need an account? Join</button></p>
+    </div>
+  </div>
+
+  <!-- WhatsApp warning modal -->
+  <div class="modal hidden" id="waModal" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-wa-close></div>
+    <div class="modal-card">
+      <button type="button" class="modal-x" data-wa-close aria-label="Close">×</button>
+      <h2>Before you continue</h2>
+      <p class="wa-warn">Please don’t remove <strong>Name</strong> / <strong>Username</strong> from the WhatsApp message. The studio needs them to recognise you.</p>
+      <pre class="wa-preview" id="waPreview"></pre>
+      <div class="wa-actions">
+        <button type="button" class="btn btn-ghost" data-wa-close>Cancel</button>
+        <button type="button" class="btn" id="waConfirm">OK, Open WhatsApp</button>
+      </div>
     </div>
   </div>
 

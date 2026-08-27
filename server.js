@@ -31,6 +31,19 @@ function signToken(user) {
   );
 }
 
+function authOptional(req, _res, next) {
+  const h = req.headers.authorization || '';
+  const token = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!token) return next();
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const db = load();
+    const user = db.users.find((u) => u.id === payload.sub);
+    if (user && user.status === 'active') req.user = user;
+  } catch (_) {}
+  next();
+}
+
 function auth(req, res, next) {
   const h = req.headers.authorization || '';
   const token = h.startsWith('Bearer ') ? h.slice(7) : null;
@@ -62,9 +75,75 @@ function publicUser(u) {
 }
 
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'artists-studio', phase: 1 });
+  res.json({ status: 'ok', service: 'artists-studio', phase: 2 });
 });
 
+// ——— Public CMS ———
+app.get('/api/v1/site', (_req, res) => {
+  const db = load();
+  res.json({ site: db.site, pages: db.pages });
+});
+
+app.get('/api/v1/pages/:slug', (req, res) => {
+  const db = load();
+  const page = db.pages[req.params.slug];
+  if (!page || !page.published) return res.status(404).json({ error: 'Page not found' });
+  res.json({ page, site: db.site });
+});
+
+app.get('/api/v1/portfolio', (_req, res) => {
+  const db = load();
+  res.json({ items: db.portfolio || [] });
+});
+
+app.get('/api/v1/reels', (_req, res) => {
+  const db = load();
+  res.json({ items: db.reels || [] });
+});
+
+app.get('/api/v1/socials', (_req, res) => {
+  const db = load();
+  res.json({ socials: db.socials || {} });
+});
+
+app.get('/api/v1/policies/:slug', (req, res) => {
+  const db = load();
+  const pol = (db.policies || {})[req.params.slug];
+  if (!pol) return res.status(404).json({ error: 'Policy not found' });
+  res.json({ policy: { slug: req.params.slug, ...pol } });
+});
+
+app.get('/api/v1/policies', (_req, res) => {
+  const db = load();
+  res.json({ policies: db.policies || {} });
+});
+
+// WhatsApp prefill helper (client can also build this; API documents contract)
+app.get('/api/v1/whatsapp-prefill', authOptional, (req, res) => {
+  const db = load();
+  const number = String(db.socials?.whatsapp || '').replace(/\D/g, '');
+  let username = 'Guest';
+  let name = 'Guest';
+  if (req.user) {
+    username = req.user.username;
+    name = req.user.name;
+  }
+  const text =
+    `Username: @${username}\nName: ${name}\n\n`;
+  const url = number
+    ? `https://wa.me/${number}?text=${encodeURIComponent(text)}`
+    : null;
+  res.json({
+    number,
+    username,
+    name,
+    text,
+    url,
+    warning: 'Please don’t remove Name / Username'
+  });
+});
+
+// ——— Auth (Phase 1) ———
 app.post('/api/v1/auth/register', authLimiter, (req, res) => {
   const username = String(req.body?.username || '').trim();
   const name = String(req.body?.name || '').trim();
@@ -119,8 +198,7 @@ app.post('/api/v1/auth/login', authLimiter, (req, res) => {
   }
   user.last_login = new Date().toISOString();
   save(db);
-  const token = signToken(user);
-  res.json({ token, user: publicUser(user) });
+  res.json({ token: signToken(user), user: publicUser(user) });
 });
 
 app.get('/api/v1/auth/me', auth, (req, res) => {
@@ -128,7 +206,6 @@ app.get('/api/v1/auth/me', auth, (req, res) => {
 });
 
 app.post('/api/v1/auth/logout', auth, (_req, res) => {
-  // JWT is client-held; client deletes token
   res.json({ ok: true });
 });
 
@@ -137,4 +214,4 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(ROOT, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => console.log("Artist's Studio Phase 1 on :" + PORT));
+app.listen(PORT, () => console.log("Artist's Studio Phase 2 on :" + PORT));
