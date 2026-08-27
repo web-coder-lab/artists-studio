@@ -16,6 +16,14 @@ const ROOT = __dirname;
 
 const app = express();
 app.use(sec.securityHeaders);
+// block easy admin URLs before static
+app.use((req, res, next) => {
+  const p = (req.path || '').toLowerCase();
+  if (p === '/admin' || p === '/admin/' || p === '/admin.html' || p === '/_panel.html') {
+    return res.status(404).send('Not found');
+  }
+  next();
+});
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(ROOT, 'public')));
@@ -1189,7 +1197,7 @@ app.get(sec.ADMIN_PATH, (req, res) => {
   if (!sec.ipAllowed(req)) {
     return res.status(403).send('Forbidden');
   }
-  res.sendFile(path.join(ROOT, 'public', 'admin.html'));
+  res.sendFile(path.join(ROOT, 'public', '_panel.html'));
 });
 app.get(['/admin', '/admin.html', '/admin/'], (_req, res) => {
   res.status(404).send('Not found');
