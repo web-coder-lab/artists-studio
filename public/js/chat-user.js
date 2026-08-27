@@ -31,6 +31,7 @@
   let convId = null;
   let pollTimer = null;
   let socket = null;
+  let callCtrl = null;
 
   function connectWs() {
     const t = token();
@@ -42,23 +43,103 @@
     socket.onmessage = (ev) => {
       let data;
       try { data = JSON.parse(ev.data); } catch { return; }
-      if (data.type === 'new_message' && data.conversation_id === convId) {
-        loadMessages().catch(() => {});
-      }
+      if (data.type === 'new_message' && data.conversation_id === convId) loadMessages().catch(() => {});
+      if (data.type === 'signal' && callCtrl) callCtrl.handleSignal(data);
+      if (data.type === 'call_status') onCallStatus(data.call);
     };
     socket.onclose = () => setTimeout(connectWs, 4000);
   }
 
+  function sendSignal(signal) {
+    if (!socket || socket.readyState !== 1 || !callCtrl?.getCallId()) return;
+    socket.send(JSON.stringify({
+      type: 'signal',
+      call_id: callCtrl.getCallId(),
+      signal
+    }));
+  }
+
+  function onCallStatus(call) {
+    if (!call) return;
+    if (call.status === 'rejected') {
+      setCallUi('Call declined', true);
+      setTimeout(hideCallOverlay, 2000);
+      callCtrl?.end();
+    } else if (call.status === 'ended') {
+      setCallUi('Call ended', true);
+      setTimeout(hideCallOverlay, 1500);
+      callCtrl?.end();
+    } else if (call.status === 'active') {
+      setCallUi('Connected', false);
+    }
+  }
+
+  function showCallOverlay(title, sub) {
+    let el = $('callOverlay');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'callOverlay';
+      el.className = 'call-overlay';
+      el.innerHTML = `
+        <h2 id="callTitle"></h2>
+        <p class="sub" id="callSub"></p>
+        <div class="call-videos">
+          <video id="remoteVideo" autoplay playsinline></video>
+          <video id="localVideo" autoplay playsinline muted></video>
+        </div>
+        <div class="call-actions">
+          <button type="button" class="ghost" id="btnMute">Mute</button>
+          <button type="button" class="ghost" id="btnCam">Camera</button>
+          <button type="button" class="end" id="btnEndCall">End</button>
+        </div>`;
+      document.body.appendChild(el);
+      $('btnEndCall').onclick = () => { callCtrl?.end(); hideCallOverlay(); };
+      $('btnMute').onclick = () => {
+        const muted = callCtrl?.toggleMute();
+        $('btnMute').textContent = muted ? 'Unmute' : 'Mute';
+      };
+      $('btnCam').onclick = () => {
+        const off = callCtrl?.toggleCamera();
+        $('btnCam').textContent = off ? 'Camera on' : 'Camera off';
+      };
+    }
+    el.classList.remove('hidden');
+    setCallUi(title, false);
+    if (sub) $('callSub').textContent = sub;
+  }
+  function setCallUi(title, hideVideos) {
+    const t = $('callTitle');
+    if (t) t.textContent = title;
+  }
+  function hideCallOverlay() {
+    $('callOverlay')?.classList.add('hidden');
+    const rv = $('remoteVideo'); const lv = $('localVideo');
+    if (rv) rv.srcObject = null;
+    if (lv) lv.srcObject = null;
+  }
+
+  function initCallCtrl() {
+    callCtrl = window.StudioCall.createCallController({
+      getToken: token,
+      getSocket: () => socket,
+      sendSignal,
+      role: 'user',
+      onLocalStream: (stream) => {
+        const v = $('localVideo');
+        if (v) v.srcObject = stream;
+      },
+      onRemoteStream: (stream) => {
+        const v = $('remoteVideo');
+        if (v) v.srcObject = stream;
+      },
+      onStatus: (s) => setCallUi(s === 'calling' ? 'Calling artist…' : s, false)
+    });
+  }
+
   function attachmentHtml(att) {
     if (!att) return '';
-    const url = att.url + (token() ? '' : '');
-    const authNote = 'fetch with bearer';
-    if (att.kind === 'image') {
-      return `<div class="att"><img data-auth-src="${escape(att.url)}" alt="${escape(att.name)}" class="att-img"/></div>`;
-    }
-    if (att.kind === 'video') {
-      return `<div class="att"><video data-auth-src="${escape(att.url)}" class="att-vid" controls></video></div>`;
-    }
+    if (att.kind === 'image') return `<div class="att"><img data-auth-src="${escape(att.url)}" alt="${escape(att.name)}" class="att-img"/></div>`;
+    if (att.kind === 'video') return `<div class="att"><video data-auth-src="${escape(att.url)}" class="att-vid" controls></video></div>`;
     return `<div class="att file"><a data-auth-href="${escape(att.url)}" href="#">${escape(att.name)}</a>
       <span class="att-size">${formatSize(att.size)}</span></div>`;
   }
@@ -69,30 +150,23 @@
     for (const img of root.querySelectorAll('img[data-auth-src]')) {
       try {
         const r = await fetch(img.getAttribute('data-auth-src'), { headers: { Authorization: 'Bearer ' + t } });
-        if (!r.ok) continue;
-        const blob = await r.blob();
-        img.src = URL.createObjectURL(blob);
+        if (r.ok) img.src = URL.createObjectURL(await r.blob());
       } catch (_) {}
     }
     for (const vid of root.querySelectorAll('video[data-auth-src]')) {
       try {
         const r = await fetch(vid.getAttribute('data-auth-src'), { headers: { Authorization: 'Bearer ' + t } });
-        if (!r.ok) continue;
-        const blob = await r.blob();
-        vid.src = URL.createObjectURL(blob);
+        if (r.ok) vid.src = URL.createObjectURL(await r.blob());
       } catch (_) {}
     }
     for (const a of root.querySelectorAll('a[data-auth-href]')) {
       a.onclick = async (e) => {
         e.preventDefault();
         const r = await fetch(a.getAttribute('data-auth-href'), { headers: { Authorization: 'Bearer ' + t } });
-        if (!r.ok) return alert('Cannot download');
-        const blob = await r.blob();
-        const url = URL.createObjectURL(blob);
+        if (!r.ok) return;
+        const url = URL.createObjectURL(await r.blob());
         const link = document.createElement('a');
-        link.href = url;
-        link.download = a.textContent || 'file';
-        link.click();
+        link.href = url; link.download = a.textContent || 'file'; link.click();
         URL.revokeObjectURL(url);
       };
     }
@@ -124,8 +198,7 @@
   async function bootChat() {
     if (!token()) return;
     try { await api('/auth/me'); } catch { return; }
-    const gate = $('gate');
-    if (gate) gate.classList.add('hidden');
+    $('gate')?.classList.add('hidden');
     const root = $('chatRoot');
     if (!root) return;
     root.classList.remove('hidden');
@@ -134,14 +207,17 @@
         <div class="chat-header">
           <div>
             <h1>Artist's Studio</h1>
-            <p class="sub">Private conversation · photos, video, files</p>
+            <p class="sub">Private chat · media · calls</p>
           </div>
+        </div>
+        <div class="call-bar">
+          <button type="button" class="primary" id="btnVoice">Voice call</button>
+          <button type="button" id="btnVideo">Video call</button>
         </div>
         <div class="chat-thread-wrap">
           <div class="chat-thread" id="thread"></div>
           <form class="chat-compose" id="compose">
-            <label class="attach-btn" title="Attach">
-              +
+            <label class="attach-btn" title="Attach">+
               <input type="file" name="file" id="fileInput" accept="image/*,video/mp4,video/webm,.pdf,.doc,.docx,.txt"/>
             </label>
             <span class="file-chip hidden" id="fileChip"></span>
@@ -157,18 +233,28 @@
       convId = created.conversation_id;
     }
     await loadMessages();
+    initCallCtrl();
+    connectWs();
+
+    $('btnVoice').onclick = async () => {
+      try {
+        showCallOverlay('Calling…', 'Voice');
+        await callCtrl.userStart('voice');
+      } catch (e) { alert(e.message); hideCallOverlay(); }
+    };
+    $('btnVideo').onclick = async () => {
+      try {
+        showCallOverlay('Calling…', 'Video');
+        await callCtrl.userStart('video');
+      } catch (e) { alert(e.message); hideCallOverlay(); }
+    };
 
     const fileInput = $('fileInput');
     const chip = $('fileChip');
     fileInput.onchange = () => {
-      if (fileInput.files[0]) {
-        chip.textContent = fileInput.files[0].name;
-        chip.classList.remove('hidden');
-      } else {
-        chip.classList.add('hidden');
-      }
+      if (fileInput.files[0]) { chip.textContent = fileInput.files[0].name; chip.classList.remove('hidden'); }
+      else chip.classList.add('hidden');
     };
-
     $('compose').onsubmit = async (e) => {
       e.preventDefault();
       const ta = e.target.querySelector('textarea');
@@ -178,13 +264,10 @@
       const fd = new FormData();
       if (body) fd.append('body', body);
       if (file) fd.append('file', file);
-      ta.value = '';
-      fileInput.value = '';
-      chip.classList.add('hidden');
+      ta.value = ''; fileInput.value = ''; chip.classList.add('hidden');
       await api('/conversations/' + convId + '/messages', { method: 'POST', body: fd });
       await loadMessages();
     };
-    connectWs();
     clearInterval(pollTimer);
     pollTimer = setInterval(() => loadMessages().catch(() => {}), 20000);
   }

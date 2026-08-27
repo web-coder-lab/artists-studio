@@ -130,7 +130,7 @@ function publicUser(u) {
 }
 
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'artists-studio', phase: 6 });
+  res.json({ status: 'ok', service: 'artists-studio', phase: 7 });
 });
 
 // ——— Public CMS ———
@@ -541,6 +541,143 @@ app.post('/api/v1/conversations/:id/messages', auth, (req, res, next) => {
   res.status(201).json({ message: publicMessage(msg) });
 });
 
+
+// ——— Calls (Phase 7) ———
+function ensureCalls(db) {
+  if (!Array.isArray(db.calls)) db.calls = [];
+  if (db._seq.calls == null) db._seq.calls = db.calls.length;
+}
+
+function publicCall(c) {
+  return {
+    id: c.id,
+    conversation_id: c.conversation_id,
+    mode: c.mode,
+    status: c.status,
+    from_user_id: c.from_user_id,
+    from_name: c.from_name,
+    from_username: c.from_username,
+    created_at: c.created_at,
+    answered_at: c.answered_at || null,
+    ended_at: c.ended_at || null
+  };
+}
+
+app.post('/api/v1/calls', auth, (req, res) => {
+  if (req.user.role === 'admin') {
+    return res.status(400).json({ error: 'Admin receives calls; user initiates' });
+  }
+  const mode = String(req.body?.mode || 'voice').toLowerCase();
+  if (!['voice', 'video'].includes(mode)) {
+    return res.status(400).json({ error: 'mode must be voice or video' });
+  }
+  const db = load();
+  ensureCalls(db);
+  const conv = getOrCreateUserConversation(db, req.user);
+  // end any ringing/active call for this user
+  db.calls.forEach((c) => {
+    if (c.from_user_id === req.user.id && ['ringing', 'active'].includes(c.status)) {
+      c.status = 'ended';
+      c.ended_at = new Date().toISOString();
+    }
+  });
+  const id = ++db._seq.calls;
+  const call = {
+    id,
+    conversation_id: conv.id,
+    mode,
+    status: 'ringing',
+    from_user_id: req.user.id,
+    from_name: req.user.name,
+    from_username: req.user.username,
+    created_at: new Date().toISOString(),
+    answered_at: null,
+    ended_at: null
+  };
+  db.calls.push(call);
+  save(db);
+  const payload = { type: 'incoming_call', call: publicCall(call) };
+  try {
+    broadcastAdmin(payload);
+    broadcastAdmin({
+      type: 'notification',
+      kind: 'call',
+      title: req.user.name,
+      body: (mode === 'video' ? 'Video' : 'Voice') + ' call',
+      username: req.user.username,
+      name: req.user.name,
+      call_id: id,
+      mode,
+      at: call.created_at
+    });
+  } catch (e) { console.error(e.message); }
+  res.status(201).json({ call: publicCall(call) });
+});
+
+app.get('/api/v1/calls/:id', auth, (req, res) => {
+  const db = load();
+  ensureCalls(db);
+  const call = db.calls.find((c) => c.id === +req.params.id);
+  if (!call) return res.status(404).json({ error: 'Not found' });
+  if (req.user.role !== 'admin' && call.from_user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  res.json({ call: publicCall(call) });
+});
+
+app.post('/api/v1/calls/:id/accept', auth, adminOnly, (req, res) => {
+  const db = load();
+  ensureCalls(db);
+  const call = db.calls.find((c) => c.id === +req.params.id);
+  if (!call) return res.status(404).json({ error: 'Not found' });
+  if (call.status !== 'ringing') return res.status(400).json({ error: 'Call not ringing' });
+  call.status = 'active';
+  call.answered_at = new Date().toISOString();
+  save(db);
+  const payload = { type: 'call_status', call: publicCall(call) };
+  try {
+    broadcastAdmin(payload);
+    broadcastUser(call.from_user_id, payload);
+  } catch (e) { console.error(e.message); }
+  res.json({ call: publicCall(call) });
+});
+
+app.post('/api/v1/calls/:id/reject', auth, adminOnly, (req, res) => {
+  const db = load();
+  ensureCalls(db);
+  const call = db.calls.find((c) => c.id === +req.params.id);
+  if (!call) return res.status(404).json({ error: 'Not found' });
+  call.status = 'rejected';
+  call.ended_at = new Date().toISOString();
+  save(db);
+  const payload = { type: 'call_status', call: publicCall(call) };
+  try {
+    broadcastAdmin(payload);
+    broadcastUser(call.from_user_id, payload);
+  } catch (e) { console.error(e.message); }
+  res.json({ call: publicCall(call) });
+});
+
+app.post('/api/v1/calls/:id/end', auth, (req, res) => {
+  const db = load();
+  ensureCalls(db);
+  const call = db.calls.find((c) => c.id === +req.params.id);
+  if (!call) return res.status(404).json({ error: 'Not found' });
+  if (req.user.role !== 'admin' && call.from_user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  call.status = 'ended';
+  call.ended_at = new Date().toISOString();
+  save(db);
+  const payload = { type: 'call_status', call: publicCall(call) };
+  try {
+    broadcastAdmin(payload);
+    broadcastUser(call.from_user_id, payload);
+  } catch (e) { console.error(e.message); }
+  res.json({ call: publicCall(call) });
+});
+
+
 // User shortcut: open/create artist chat then post
 app.post('/api/v1/chat/artist', auth, (req, res) => {
   if (req.user.role === 'admin') {
@@ -672,7 +809,27 @@ wss.on('connection', (ws) => {
       }
       return;
     }
-    if (data.type === 'ping') wsSend(ws, { type: 'pong' });
+    if (data.type === 'ping') { wsSend(ws, { type: 'pong' }); return; }
+    if (data.type === 'signal' && data.call_id != null) {
+      const meta = wsClients.get(ws);
+      if (!meta) return;
+      const db = load();
+      ensureCalls(db);
+      const call = db.calls.find((c) => c.id === +data.call_id);
+      if (!call) return;
+      if (meta.role !== 'admin' && call.from_user_id !== meta.userId) return;
+      const signalPayload = {
+        type: 'signal',
+        call_id: call.id,
+        from_role: meta.role,
+        signal: data.signal
+      };
+      if (meta.role === 'admin') {
+        broadcastUser(call.from_user_id, signalPayload);
+      } else {
+        broadcastAdmin(signalPayload);
+      }
+    }
   });
   ws.on('close', () => wsClients.delete(ws));
 });

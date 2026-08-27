@@ -127,7 +127,8 @@ function defaultDb() {
     conversations: [],
     messages: [],
     media: [],
-    _seq: { users: 1, portfolio: 4, reels: 3, contacts: 0, conversations: 0, messages: 0, media: 0 }
+    calls: [],
+    _seq: { users: 1, portfolio: 4, reels: 3, contacts: 0, conversations: 0, messages: 0, media: 0, calls: 0 }
   };
 }
 
@@ -141,7 +142,7 @@ function load() {
   // migrate phase-1 DBs missing CMS fields
   const base = defaultDb();
   let changed = false;
-  for (const key of ['site', 'socials', 'portfolio', 'reels', 'policies', 'pages', 'contacts', 'conversations', 'messages', 'media']) {
+  for (const key of ['site', 'socials', 'portfolio', 'reels', 'policies', 'pages', 'contacts', 'conversations', 'messages', 'media', 'calls']) {
     if (!raw[key]) {
       raw[key] = base[key];
       changed = true;
@@ -152,6 +153,7 @@ function load() {
   if (raw._seq.conversations == null) raw._seq.conversations = (raw.conversations || []).length;
   if (raw._seq.messages == null) raw._seq.messages = (raw.messages || []).length;
   if (raw._seq.media == null) raw._seq.media = (raw.media || []).length;
+  if (raw._seq.calls == null) raw._seq.calls = (raw.calls || []).length;
   // Studio public contact (Phase setup)
   raw.socials = Object.assign({}, raw.socials || {}, {
     whatsapp: '923244015101',

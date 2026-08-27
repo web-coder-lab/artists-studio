@@ -70,6 +70,81 @@ function fmtTime(iso) {
 let activeConv = null;
 let pollTimer = null;
 
+
+let callCtrl = null;
+function ensureCallCtrl() {
+  if (callCtrl || !window.StudioCall) return;
+  callCtrl = window.StudioCall.createCallController({
+    getToken: token,
+    sendSignal: (signal) => {
+      if (!socket || socket.readyState !== 1 || !callCtrl?.getCallId()) return;
+      socket.send(JSON.stringify({ type: 'signal', call_id: callCtrl.getCallId(), signal }));
+    },
+    role: 'admin',
+    onLocalStream: (stream) => { const v = document.getElementById('localVideo'); if (v) v.srcObject = stream; },
+    onRemoteStream: (stream) => { const v = document.getElementById('remoteVideo'); if (v) v.srcObject = stream; },
+    onStatus: (s) => { const t = document.getElementById('callTitle'); if (t) t.textContent = s; }
+  });
+}
+
+function showIncomingCall(call) {
+  let b = document.getElementById('incomingBanner');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'incomingBanner';
+    b.className = 'incoming-banner';
+    document.body.appendChild(b);
+  }
+  b.classList.remove('hidden');
+  b.innerHTML = '<h3>' + escape(call.from_name || 'User') + (call.from_username ? ' · @' + escape(call.from_username) : '') + '</h3>' +
+    '<p>Incoming ' + (call.mode === 'video' ? 'Video' : 'Voice') + ' Call</p>' +
+    '<div class="row"><button type="button" class="btn btn-sm btn-ghost" id="rejCall">Decline</button>' +
+    '<button type="button" class="btn btn-sm" id="accCall">Accept</button></div>';
+  document.getElementById('rejCall').onclick = async () => {
+    try { await api('/calls/' + call.id + '/reject'); } catch (_) {}
+    b.classList.add('hidden');
+  };
+  document.getElementById('accCall').onclick = async () => {
+    b.classList.add('hidden');
+    ensureCallCtrl();
+    showAdminCallUi(call);
+    try {
+      callCtrl.setCallId(call.id);
+      await callCtrl.adminAccept(call.id, call.mode);
+    } catch (e) { alert(e.message); hideAdminCallUi(); }
+  };
+}
+
+function showAdminCallUi(call) {
+  let el = document.getElementById('callOverlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'callOverlay';
+    el.className = 'call-overlay';
+    el.innerHTML = '<h2 id="callTitle">Connecting…</h2><p class="sub" id="callSub"></p>' +
+      '<div class="call-videos"><video id="remoteVideo" autoplay playsinline></video><video id="localVideo" autoplay playsinline muted></video></div>' +
+      '<div class="call-actions"><button type="button" class="ghost" id="btnMute">Mute</button>' +
+      '<button type="button" class="ghost" id="btnCam">Camera</button>' +
+      '<button type="button" class="end" id="btnEndCall">End</button></div>';
+    document.body.appendChild(el);
+  }
+  el.classList.remove('hidden');
+  document.getElementById('callSub').textContent = (call.from_name || '') + ' · ' + call.mode;
+  document.getElementById('btnEndCall').onclick = () => { callCtrl?.end(); hideAdminCallUi(); };
+  document.getElementById('btnMute').onclick = () => {
+    const m = callCtrl?.toggleMute();
+    document.getElementById('btnMute').textContent = m ? 'Unmute' : 'Mute';
+  };
+  document.getElementById('btnCam').onclick = () => {
+    const o = callCtrl?.toggleCamera();
+    document.getElementById('btnCam').textContent = o ? 'Camera on' : 'Camera off';
+  };
+}
+function hideAdminCallUi() {
+  document.getElementById('callOverlay')?.classList.add('hidden');
+}
+
+
 let socket = null;
 function connectWs() {
   const t = token();
@@ -92,6 +167,23 @@ function connectWs() {
     if (data.type === 'new_message') {
       loadConversations().catch(() => {});
       if (activeConv === data.conversation_id) loadThread(activeConv, true).catch(() => {});
+    }
+    if (data.type === 'incoming_call' && data.call) {
+      showIncomingCall(data.call);
+    }
+    if (data.type === 'notification' && data.kind === 'call' && data.call_id) {
+      // banner also from incoming_call
+    }
+    if (data.type === 'signal') {
+      ensureCallCtrl();
+      callCtrl?.handleSignal(data);
+    }
+    if (data.type === 'call_status' && data.call) {
+      if (['ended', 'rejected'].includes(data.call.status)) {
+        hideAdminCallUi();
+        document.getElementById('incomingBanner')?.classList.add('hidden');
+        callCtrl?.end();
+      }
     }
   };
   socket.onclose = () => setTimeout(connectWs, 4000);
