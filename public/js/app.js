@@ -200,24 +200,8 @@ async function renderPage() {
       <div class="svc-grid">${(site.services || []).map((x) => `
         <article class="svc-card"><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.text)}</p></article>`).join('')}</div>`;
   } else if (page === 'contact') {
-    root.innerHTML = `<div class="page-hero"><p class="eyebrow">Connect</p><h1>Contact</h1>
-      <p class="lede">Send a note to the studio. Prefer WhatsApp? Your name stays in the message.</p></div>
-      <form id="contactForm" class="card-form">
-        <label><span>Name *</span><input name="name" required minlength="2" maxlength="60"/></label>
-        <label><span>Email</span><input name="email" type="email"/></label>
-        <label><span>Phone</span><input name="phone" type="tel"/></label>
-        <label><span>Message *</span><textarea name="message" required minlength="5" maxlength="2000" rows="5"></textarea></label>
-        <p class="form-error hidden" id="contactError"></p>
-        <p class="form-ok hidden" id="contactOk">Message sent. We’ll get back to you.</p>
-        <button type="submit" class="btn" id="contactSubmit">Send message</button>
-      </form>
-      <div class="contact-alt">
-        <button type="button" class="btn btn-ghost" id="btnWhatsApp">WhatsApp</button>
-        <a class="btn btn-ghost" id="btnEmail" href="mailto:${escapeHtml(socials.email || '')}">Email</a>
-        <a class="btn btn-ghost" id="btnIg" href="${escapeHtml(socials.instagram || '#')}" target="_blank" rel="noopener">Instagram</a>
-      </div>`;
-    $('btnWhatsApp')?.addEventListener('click', openWhatsAppFlow);
-    $('contactForm')?.addEventListener('submit', onContactSubmit);
+    // Contact page is the chat UI (chat-user.js). No form here.
+    return;
   } else if (page === 'policies') {
     const pol = await api('/policies');
     const policies = pol.policies || {};
@@ -235,10 +219,10 @@ async function renderPage() {
         <p class="muted">@${escapeHtml(currentUser.username)}</p></div>
         <div class="dash-grid">
           <article class="tile"><h3>Profile</h3><p>${escapeHtml(currentUser.name)} · @${escapeHtml(currentUser.username)}</p></article>
-          <article class="tile"><h3>Messages</h3><p><a href="/chat.html" style="color:var(--accent)">Open chat with artist</a></p></article>
+          <article class="tile"><h3>Messages</h3><p><a href="/contact.html" style="color:var(--accent)">Open chat with artist</a></p></article>
           <article class="tile"><h3>Calls</h3><p class="muted">Voice & video — coming soon.</p></article>
         </div>
-        <p style="margin:8px 0 16px"><a class="btn" href="/chat.html">Contact Artist</a></p>
+        <p style="margin:8px 0 16px"><a class="btn" href="/contact.html">Contact Artist</a></p>
         <button type="button" class="btn btn-ghost" id="btnLogout">Sign out</button>`;
       $('btnLogout')?.addEventListener('click', logout);
     }

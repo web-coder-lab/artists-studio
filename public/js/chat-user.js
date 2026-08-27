@@ -32,6 +32,97 @@
   let pollTimer = null;
   let socket = null;
   let callCtrl = null;
+  let socials = {};
+  let channelsHidden = false;
+
+  async function loadSocials() {
+    try {
+      const data = await api('/socials');
+      socials = data.socials || {};
+    } catch (_) {
+      socials = {};
+    }
+  }
+
+  function channelButtonsHtml(compact) {
+    const wa = (socials.whatsapp || '').replace(/\D/g, '');
+    const ig = socials.instagram || '';
+    const em = socials.email || '';
+    const parts = [];
+    if (wa) {
+      parts.push(`<button type="button" class="channel-btn" data-channel="whatsapp">WhatsApp</button>`);
+    }
+    if (ig) {
+      parts.push(`<a class="channel-btn" href="${escape(ig)}" target="_blank" rel="noopener">Instagram</a>`);
+    }
+    if (em) {
+      parts.push(`<a class="channel-btn" href="mailto:${escape(em)}">Email</a>`);
+    }
+    return parts.join('') || '<span class="muted">No channels configured</span>';
+  }
+
+  function bindChannelClicks(root) {
+    root?.querySelectorAll('[data-channel="whatsapp"]').forEach((btn) => {
+      btn.onclick = async () => {
+        try {
+          const data = await api('/whatsapp-prefill');
+          if (!data.url) { alert('WhatsApp not available'); return; }
+          // reuse site wa modal if present
+          const preview = $('waPreview');
+          const modal = $('waModal');
+          if (preview && modal) {
+            window.__waUrl = data.url;
+            preview.textContent = data.text + '(Your message…)';
+            modal.classList.remove('hidden');
+            const conf = $('waConfirm');
+            if (conf) {
+              conf.onclick = () => {
+                window.open(data.url, '_blank', 'noopener');
+                modal.classList.add('hidden');
+              };
+            }
+          } else {
+            if (confirm("Please don't remove Name / Username from the WhatsApp message.\n\nOpen WhatsApp?")) {
+              window.open(data.url, '_blank', 'noopener');
+            }
+          }
+        } catch (e) { alert(e.message); }
+      };
+    });
+  }
+
+  function hideFrontChannels() {
+    if (channelsHidden) return;
+    channelsHidden = true;
+    $('frontChannels')?.classList.add('hidden');
+    $('settingsBtn')?.classList.remove('hidden');
+  }
+
+  function openSettings() {
+    let sheet = $('settingsSheet');
+    if (!sheet) {
+      sheet = document.createElement('div');
+      sheet.id = 'settingsSheet';
+      sheet.className = 'settings-sheet';
+      sheet.innerHTML = `
+        <div class="settings-card">
+          <h3>Channels</h3>
+          <p class="muted">Reach the studio outside private chat.</p>
+          <div class="channel-row" id="settingsChannels"></div>
+          <p style="margin-top:16px;text-align:right">
+            <button type="button" class="btn btn-ghost" id="closeSettings">Close</button>
+          </p>
+        </div>`;
+      document.body.appendChild(sheet);
+      sheet.addEventListener('click', (e) => {
+        if (e.target === sheet || e.target.id === 'closeSettings') sheet.classList.add('hidden');
+      });
+    }
+    const box = $('settingsChannels');
+    box.innerHTML = channelButtonsHtml();
+    bindChannelClicks(box);
+    sheet.classList.remove('hidden');
+  }
 
   function connectWs() {
     const t = token();
@@ -52,25 +143,21 @@
 
   function sendSignal(signal) {
     if (!socket || socket.readyState !== 1 || !callCtrl?.getCallId()) return;
-    socket.send(JSON.stringify({
-      type: 'signal',
-      call_id: callCtrl.getCallId(),
-      signal
-    }));
+    socket.send(JSON.stringify({ type: 'signal', call_id: callCtrl.getCallId(), signal }));
   }
 
   function onCallStatus(call) {
     if (!call) return;
     if (call.status === 'rejected') {
-      setCallUi('Call declined', true);
+      setCallUi('Call declined');
       setTimeout(hideCallOverlay, 2000);
       callCtrl?.end();
     } else if (call.status === 'ended') {
-      setCallUi('Call ended', true);
+      setCallUi('Call ended');
       setTimeout(hideCallOverlay, 1500);
       callCtrl?.end();
     } else if (call.status === 'active') {
-      setCallUi('Connected', false);
+      setCallUi('Connected');
     }
   }
 
@@ -104,10 +191,10 @@
       };
     }
     el.classList.remove('hidden');
-    setCallUi(title, false);
+    setCallUi(title);
     if (sub) $('callSub').textContent = sub;
   }
-  function setCallUi(title, hideVideos) {
+  function setCallUi(title) {
     const t = $('callTitle');
     if (t) t.textContent = title;
   }
@@ -119,20 +206,14 @@
   }
 
   function initCallCtrl() {
+    if (!window.StudioCall) return;
     callCtrl = window.StudioCall.createCallController({
       getToken: token,
-      getSocket: () => socket,
       sendSignal,
       role: 'user',
-      onLocalStream: (stream) => {
-        const v = $('localVideo');
-        if (v) v.srcObject = stream;
-      },
-      onRemoteStream: (stream) => {
-        const v = $('remoteVideo');
-        if (v) v.srcObject = stream;
-      },
-      onStatus: (s) => setCallUi(s === 'calling' ? 'Calling artist…' : s, false)
+      onLocalStream: (stream) => { const v = $('localVideo'); if (v) v.srcObject = stream; },
+      onRemoteStream: (stream) => { const v = $('remoteVideo'); if (v) v.srcObject = stream; },
+      onStatus: (s) => setCallUi(s === 'calling' ? 'Calling artist…' : s)
     });
   }
 
@@ -175,6 +256,7 @@
   function renderThread(messages) {
     const el = $('thread');
     if (!el) return;
+    if (messages && messages.length) hideFrontChannels();
     el.innerHTML = messages.map((m) => {
       const mine = m.sender_role === 'user';
       return `<div class="bubble-row ${mine ? 'mine' : 'theirs'}">
@@ -184,7 +266,7 @@
           <div class="meta"><span>${fmtTime(m.created_at)}</span>${mine ? '<span>' + escape(m.status || '') + '</span>' : ''}</div>
         </div>
       </div>`;
-    }).join('') || '<div class="chat-empty">Say assalam o alaikum — start the conversation.</div>';
+    }).join('') || '<div class="chat-empty">Type a message to the studio — or use WhatsApp, Instagram, Email above.</div>';
     el.scrollTop = el.scrollHeight;
     hydrateAuthMedia(el);
   }
@@ -196,20 +278,36 @@
   }
 
   async function bootChat() {
+    await loadSocials();
+
+    // Guest: show channels on gate
+    const guest = $('guestChannels');
+    if (guest && !token()) {
+      guest.innerHTML = channelButtonsHtml();
+      bindChannelClicks(guest);
+    }
+
     if (!token()) return;
     try { await api('/auth/me'); } catch { return; }
+
     $('gate')?.classList.add('hidden');
     const root = $('chatRoot');
     if (!root) return;
     root.classList.remove('hidden');
+    channelsHidden = false;
+
     root.innerHTML = `
       <div class="chat-app">
         <div class="chat-header">
           <div>
             <h1>Artist's Studio</h1>
-            <p class="sub">Private chat · media · calls</p>
+            <p class="sub">Private conversation</p>
+          </div>
+          <div class="chat-header-actions">
+            <button type="button" class="icon-btn hidden" id="settingsBtn" title="Channels">⚙</button>
           </div>
         </div>
+        <div class="channel-row" id="frontChannels">${channelButtonsHtml()}</div>
         <div class="call-bar">
           <button type="button" class="primary" id="btnVoice">Voice call</button>
           <button type="button" id="btnVideo">Video call</button>
@@ -221,11 +319,15 @@
               <input type="file" name="file" id="fileInput" accept="image/*,video/mp4,video/webm,.pdf,.doc,.docx,.txt"/>
             </label>
             <span class="file-chip hidden" id="fileChip"></span>
-            <textarea name="body" rows="1" placeholder="Type a message"></textarea>
+            <textarea name="body" rows="1" placeholder="Type a message" id="msgInput"></textarea>
             <button type="submit">Send</button>
           </form>
         </div>
       </div>`;
+
+    bindChannelClicks($('frontChannels'));
+    $('settingsBtn').onclick = openSettings;
+
     const list = await api('/conversations');
     if (list.items && list.items[0]) convId = list.items[0].id;
     else {
@@ -251,28 +353,41 @@
 
     const fileInput = $('fileInput');
     const chip = $('fileChip');
+    const msgInput = $('msgInput');
+
+    // typing starts → hide front channels, show settings
+    msgInput.addEventListener('input', () => {
+      if (msgInput.value.trim().length > 0) hideFrontChannels();
+    });
     fileInput.onchange = () => {
-      if (fileInput.files[0]) { chip.textContent = fileInput.files[0].name; chip.classList.remove('hidden'); }
-      else chip.classList.add('hidden');
+      if (fileInput.files[0]) {
+        chip.textContent = fileInput.files[0].name;
+        chip.classList.remove('hidden');
+        hideFrontChannels();
+      } else chip.classList.add('hidden');
     };
+
     $('compose').onsubmit = async (e) => {
       e.preventDefault();
-      const ta = e.target.querySelector('textarea');
-      const body = String(ta.value || '').trim();
+      const body = String(msgInput.value || '').trim();
       const file = fileInput.files[0];
       if (!body && !file) return;
+      hideFrontChannels();
       const fd = new FormData();
       if (body) fd.append('body', body);
       if (file) fd.append('file', file);
-      ta.value = ''; fileInput.value = ''; chip.classList.add('hidden');
+      msgInput.value = '';
+      fileInput.value = '';
+      chip.classList.add('hidden');
       await api('/conversations/' + convId + '/messages', { method: 'POST', body: fd });
       await loadMessages();
     };
+
     clearInterval(pollTimer);
     pollTimer = setInterval(() => loadMessages().catch(() => {}), 20000);
   }
 
-  const tryBoot = () => { if (token()) bootChat().catch(console.error); };
+  const tryBoot = () => { bootChat().catch(console.error); };
   tryBoot();
   setTimeout(tryBoot, 400);
   setTimeout(tryBoot, 1200);
