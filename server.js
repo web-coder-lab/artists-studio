@@ -176,6 +176,13 @@ function requireStaff(req, res, next) {
   next();
 }
 
+function isAdminRole(role) {
+  return role === 'admin' || role === 'superadmin';
+}
+function isStaffRole(role) {
+  return role === 'admin' || role === 'superadmin' || role === 'moderator';
+}
+
 function publicUser(u) {
   return {
     id: u.id,
@@ -483,7 +490,7 @@ function attachmentKind(mime, name) {
 // User: ensure conversation + list (single artist thread)
 app.get('/api/v1/conversations', auth, (req, res) => {
   const db = load();
-  if (req.user.role === 'admin') {
+  if (isAdminRole(req.user.role)) {
     ensureChatSeq(db);
     const items = db.conversations
       .slice()
@@ -521,7 +528,7 @@ app.get('/api/v1/conversations/:id/messages', auth, (req, res) => {
   const id = +req.params.id;
   const conv = db.conversations.find((c) => c.id === id);
   if (!conv) return res.status(404).json({ error: 'Conversation not found' });
-  if (req.user.role !== 'admin' && conv.user_id !== req.user.id) {
+  if (!isAdminRole(req.user.role) && conv.user_id !== req.user.id) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   const msgs = db.messages
@@ -529,7 +536,7 @@ app.get('/api/v1/conversations/:id/messages', auth, (req, res) => {
     .sort((a, b) => a.id - b.id)
     .map(publicMessage);
   // mark read for viewer
-  if (req.user.role === 'admin') {
+  if (isAdminRole(req.user.role)) {
     conv.admin_unread = 0;
     db.messages.forEach((m) => {
       if (m.conversation_id === id && m.sender_role === 'user' && m.status !== 'read') m.status = 'read';
@@ -546,7 +553,7 @@ app.get('/api/v1/conversations/:id/messages', auth, (req, res) => {
       id: conv.id,
       name: conv.name,
       username: conv.username,
-      title: req.user.role === 'admin' ? (conv.name || conv.username) : "Artist's Studio"
+      title: isAdminRole(req.user.role) ? (conv.name || conv.username) : "Artist's Studio"
     },
     messages: msgs
   });
@@ -568,11 +575,11 @@ app.post('/api/v1/conversations/:id/messages', auth, (req, res, next) => {
   if (db._seq.media == null) db._seq.media = db.media.length;
   const id = +req.params.id;
   let conv = db.conversations.find((c) => c.id === id);
-  if (!conv && req.user.role !== 'admin') {
+  if (!conv && !isAdminRole(req.user.role)) {
     conv = getOrCreateUserConversation(db, req.user);
   }
   if (!conv) return res.status(404).json({ error: 'Conversation not found' });
-  if (req.user.role !== 'admin' && conv.user_id !== req.user.id) {
+  if (!isAdminRole(req.user.role) && conv.user_id !== req.user.id) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   let attachment = null;
@@ -597,7 +604,7 @@ app.post('/api/v1/conversations/:id/messages', auth, (req, res, next) => {
   const msg = {
     id: mid,
     conversation_id: conv.id,
-    sender_role: req.user.role === 'admin' ? 'admin' : 'user',
+    sender_role: isAdminRole(req.user.role) ? 'admin' : 'user',
     sender_id: req.user.id,
     sender_name: req.user.name,
     body: body || '',
@@ -654,7 +661,7 @@ function applyConfig(db, cfg) {
 app.get('/api/v1/admin/dashboard', auth, adminOnly, (req, res) => {
   const db = load();
   res.json({
-    users: (db.users || []).filter((u) => u.role !== 'admin').length,
+    users: (db.users || []).filter((u) => !isAdminRole(u.role)).length,
     contacts_new: (db.contacts || []).filter((c) => c.status === 'new').length,
     conversations: (db.conversations || []).length,
     chat_unread: (db.conversations || []).reduce((n, c) => n + (c.admin_unread || 0), 0),
@@ -784,7 +791,7 @@ app.delete('/api/v1/admin/reels/:id', auth, adminOnly, (req, res) => {
 app.get('/api/v1/admin/users', auth, adminOnly, (req, res) => {
   const db = load();
   const items = (db.users || [])
-    .filter((u) => u.role !== 'admin')
+    .filter((u) => !isAdminRole(u.role))
     .map((u) => ({
       id: u.id,
       username: u.username,
@@ -1067,7 +1074,7 @@ function publicCall(c) {
 }
 
 app.post('/api/v1/calls', auth, (req, res) => {
-  if (req.user.role === 'admin') {
+  if (isAdminRole(req.user.role)) {
     return res.status(400).json({ error: 'Admin receives calls; user initiates' });
   }
   const mode = String(req.body?.mode || 'voice').toLowerCase();
@@ -1122,7 +1129,7 @@ app.get('/api/v1/calls/:id', auth, (req, res) => {
   ensureCalls(db);
   const call = db.calls.find((c) => c.id === +req.params.id);
   if (!call) return res.status(404).json({ error: 'Not found' });
-  if (req.user.role !== 'admin' && call.from_user_id !== req.user.id) {
+  if (!isAdminRole(req.user.role) && call.from_user_id !== req.user.id) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   res.json({ call: publicCall(call) });
@@ -1166,7 +1173,7 @@ app.post('/api/v1/calls/:id/end', auth, (req, res) => {
   ensureCalls(db);
   const call = db.calls.find((c) => c.id === +req.params.id);
   if (!call) return res.status(404).json({ error: 'Not found' });
-  if (req.user.role !== 'admin' && call.from_user_id !== req.user.id) {
+  if (!isAdminRole(req.user.role) && call.from_user_id !== req.user.id) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   call.status = 'ended';
@@ -1183,7 +1190,7 @@ app.post('/api/v1/calls/:id/end', auth, (req, res) => {
 
 // User shortcut: open/create artist chat then post
 app.post('/api/v1/chat/artist', auth, (req, res) => {
-  if (req.user.role === 'admin') {
+  if (isAdminRole(req.user.role)) {
     return res.status(400).json({ error: 'Use conversation endpoints as admin' });
   }
   const body = String(req.body?.body || '').trim();

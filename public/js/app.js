@@ -12,6 +12,16 @@ function token() { return localStorage.getItem(TOKEN_KEY); }
 function setToken(t) { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); }
 
 async function api(path, opts = {}) {
+  if (window.StudioAPI) {
+    try {
+      return await window.StudioAPI.api(path, opts);
+    } catch (e) {
+      if (e.auth && page !== 'contact') {
+        showAuthWall();
+      }
+      throw e;
+    }
+  }
   const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
   const t = token();
   if (t) headers.Authorization = 'Bearer ' + t;

@@ -4,6 +4,9 @@ const token = () => localStorage.getItem(TOKEN_KEY);
 const $ = (id) => document.getElementById(id);
 
 async function api(path, opts = {}) {
+  if (window.StudioAPI && !(opts.body instanceof FormData)) {
+    return window.StudioAPI.api(path, opts);
+  }
   const headers = { ...(opts.headers || {}) };
   if (!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
   if (token()) headers.Authorization = 'Bearer ' + token();

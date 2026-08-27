@@ -5,6 +5,18 @@
   const $ = (id) => document.getElementById(id);
 
   async function api(path, opts = {}) {
+    if (window.StudioAPI) {
+      // FormData must pass through
+      if (opts.body instanceof FormData) {
+        const headers = { ...(opts.headers || {}) };
+        if (token()) headers.Authorization = 'Bearer ' + token();
+        const res = await fetch(API + path, { ...opts, headers });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        return data;
+      }
+      return window.StudioAPI.api(path, opts);
+    }
     const headers = { ...(opts.headers || {}) };
     if (!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
     if (token()) headers.Authorization = 'Bearer ' + token();
