@@ -123,7 +123,8 @@ function defaultDb() {
       services: { slug: 'services', title: 'Services', published: true },
       contact: { slug: 'contact', title: 'Contact', published: true }
     },
-    _seq: { users: 1, portfolio: 4, reels: 3 }
+    contacts: [],
+    _seq: { users: 1, portfolio: 4, reels: 3, contacts: 0 }
   };
 }
 
@@ -137,13 +138,14 @@ function load() {
   // migrate phase-1 DBs missing CMS fields
   const base = defaultDb();
   let changed = false;
-  for (const key of ['site', 'socials', 'portfolio', 'reels', 'policies', 'pages']) {
+  for (const key of ['site', 'socials', 'portfolio', 'reels', 'policies', 'pages', 'contacts']) {
     if (!raw[key]) {
       raw[key] = base[key];
       changed = true;
     }
   }
   if (!raw._seq) raw._seq = base._seq;
+  if (raw._seq.contacts == null) raw._seq.contacts = (raw.contacts || []).length;
   if (changed) save(raw);
   return raw;
 }

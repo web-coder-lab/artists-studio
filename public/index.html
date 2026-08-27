@@ -76,13 +76,21 @@
     <section class="section" id="contact">
       <p class="eyebrow">Connect</p>
       <h2 class="section-title">Contact</h2>
-      <p class="muted contact-lead">Reach the studio on WhatsApp. Your name stays in the message so we know who you are.</p>
-      <div class="contact-actions">
-        <button type="button" class="btn" id="btnWhatsApp">Message on WhatsApp</button>
+      <p class="muted contact-lead">Send a note to the studio, or continue on WhatsApp with your name attached.</p>
+      <form id="contactForm" class="contact-form card-form">
+        <label><span>Name *</span><input name="name" required minlength="2" maxlength="60" placeholder="Your name"/></label>
+        <label><span>Email</span><input name="email" type="email" placeholder="you@email.com"/></label>
+        <label><span>Phone</span><input name="phone" type="tel" placeholder="Optional"/></label>
+        <label><span>Message *</span><textarea name="message" required minlength="5" maxlength="2000" rows="4" placeholder="How can we help?"></textarea></label>
+        <p class="form-error hidden" id="contactError"></p>
+        <p class="form-ok hidden" id="contactOk">Message sent — the studio will see it in Contact.</p>
+        <button type="submit" class="btn" id="contactSubmit">Send message</button>
+      </form>
+      <div class="contact-actions" style="margin-top:20px">
+        <button type="button" class="btn btn-ghost" id="btnWhatsApp">WhatsApp</button>
         <a class="btn btn-ghost" id="btnEmail" href="#">Email</a>
         <a class="btn btn-ghost" id="btnIg" href="#" target="_blank" rel="noopener">Instagram</a>
       </div>
-      <p class="hint muted">Form inbox & private chat arrive in later phases.</p>
     </section>
 
     <section class="section dash hidden" id="viewDash">
@@ -112,7 +120,7 @@
 
   <footer class="foot">
     <span id="footBrand">Artist's Studio</span>
-    <span class="muted">Phase 2 · Public site</span>
+    <span class="muted">Phase 3 · <a href="/admin.html" style="color:inherit">Admin</a></span>
   </footer>
 
   <!-- Auth modal -->

@@ -206,3 +206,30 @@ $('authForm').addEventListener('submit', async (e) => {
 
 loadPublic().catch((e) => console.error(e));
 refreshSession();
+
+
+$('contactForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('contactError');
+  const ok = $('contactOk');
+  err.classList.add('hidden');
+  ok.classList.add('hidden');
+  const fd = new FormData(e.target);
+  const body = {
+    name: fd.get('name'),
+    email: fd.get('email'),
+    phone: fd.get('phone'),
+    message: fd.get('message'),
+  };
+  $('contactSubmit').disabled = true;
+  try {
+    await api('/contact', { method: 'POST', body: JSON.stringify(body) });
+    e.target.reset();
+    ok.classList.remove('hidden');
+  } catch (ex) {
+    err.textContent = ex.message;
+    err.classList.remove('hidden');
+  } finally {
+    $('contactSubmit').disabled = false;
+  }
+});

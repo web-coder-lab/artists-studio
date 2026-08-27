@@ -15,6 +15,14 @@ app.use(cors());
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(ROOT, 'public')));
 
+const contactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many contact submissions. Try later.' }
+});
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 40,
@@ -62,6 +70,14 @@ function auth(req, res, next) {
   }
 }
 
+
+function adminOnly(req, res, next) {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  next();
+}
+
 function publicUser(u) {
   return {
     id: u.id,
@@ -75,7 +91,7 @@ function publicUser(u) {
 }
 
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'artists-studio', phase: 2 });
+  res.json({ status: 'ok', service: 'artists-studio', phase: 3 });
 });
 
 // ——— Public CMS ———
@@ -141,6 +157,75 @@ app.get('/api/v1/whatsapp-prefill', authOptional, (req, res) => {
     url,
     warning: 'Please don’t remove Name / Username'
   });
+});
+
+
+// ——— Contact form (Phase 3) ———
+app.post('/api/v1/contact', contactLimiter, authOptional, (req, res) => {
+  const name = String(req.body?.name || '').trim();
+  const email = String(req.body?.email || '').trim();
+  const phone = String(req.body?.phone || '').trim();
+  const message = String(req.body?.message || '').trim();
+  if (!name || name.length < 2) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+  if (!message || message.length < 5) {
+    return res.status(400).json({ error: 'Message is required (min 5 characters)' });
+  }
+  if (message.length > 2000) {
+    return res.status(400).json({ error: 'Message too long' });
+  }
+  const db = load();
+  if (!Array.isArray(db.contacts)) db.contacts = [];
+  if (db._seq.contacts == null) db._seq.contacts = db.contacts.length;
+  const id = ++db._seq.contacts;
+  const entry = {
+    id,
+    name,
+    username: req.user ? req.user.username : (String(req.body?.username || '').trim() || null),
+    user_id: req.user ? req.user.id : null,
+    email: email || null,
+    phone: phone || null,
+    message,
+    status: 'new',
+    created_at: new Date().toISOString(),
+    read_at: null
+  };
+  db.contacts.unshift(entry);
+  save(db);
+  res.status(201).json({ id: entry.id, status: entry.status });
+});
+
+app.get('/api/v1/admin/contacts', auth, adminOnly, (req, res) => {
+  const db = load();
+  let list = Array.isArray(db.contacts) ? db.contacts.slice() : [];
+  const status = req.query.status;
+  if (status) list = list.filter((c) => c.status === status);
+  res.json({
+    items: list,
+    unread: list.filter((c) => c.status === 'new').length
+  });
+});
+
+app.get('/api/v1/admin/contacts/:id', auth, adminOnly, (req, res) => {
+  const db = load();
+  const item = (db.contacts || []).find((c) => c.id === +req.params.id);
+  if (!item) return res.status(404).json({ error: 'Not found' });
+  res.json({ item });
+});
+
+app.patch('/api/v1/admin/contacts/:id', auth, adminOnly, (req, res) => {
+  const db = load();
+  const item = (db.contacts || []).find((c) => c.id === +req.params.id);
+  if (!item) return res.status(404).json({ error: 'Not found' });
+  const status = String(req.body?.status || '').trim();
+  const allowed = ['new', 'read', 'replied', 'closed'];
+  if (status && allowed.includes(status)) {
+    item.status = status;
+    if (status === 'read' && !item.read_at) item.read_at = new Date().toISOString();
+  }
+  save(db);
+  res.json({ item });
 });
 
 // ——— Auth (Phase 1) ———

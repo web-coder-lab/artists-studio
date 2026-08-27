@@ -98,3 +98,8 @@ main{max-width:1080px;margin:0 auto;padding:12px 18px 64px}
 .wa-warn{color:var(--muted);margin:8px 0 14px}
 .wa-preview{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:.85rem;white-space:pre-wrap;color:var(--text);overflow:auto}
 .wa-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+.card-form{max-width:480px;display:flex;flex-direction:column;gap:12px;margin:8px 0 0}
+.card-form label{display:flex;flex-direction:column;gap:6px;font-size:.82rem;color:var(--muted)}
+.card-form input,.card-form textarea{font:inherit;color:var(--text);background:var(--bg-elev);border:1px solid var(--line);border-radius:12px;padding:12px 14px;outline:none;resize:vertical}
+.card-form input:focus,.card-form textarea:focus{border-color:rgba(196,165,116,.55);box-shadow:0 0 0 3px var(--accent-dim)}
+.form-ok{color:#86efac;font-size:.9rem;margin:0}

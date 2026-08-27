@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Admin · Contact — Artist's Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/studio.css"/>
+  <style>
+    .admin-wrap{max-width:720px;margin:0 auto;padding:24px 18px 64px}
+    .admin-wrap h1{font-family:var(--font-display);font-weight:500;font-size:2rem;margin:0 0 6px}
+    .inbox-item{border:1px solid var(--line);background:var(--bg-elev);border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer}
+    .inbox-item.new{border-color:rgba(196,165,116,.45)}
+    .inbox-item h3{margin:0 0 4px;font-size:1rem}
+    .inbox-item p{margin:0;color:var(--muted);font-size:.9rem}
+    .badge{display:inline-block;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-left:6px}
+    .detail{margin-top:16px;padding:16px;border-radius:14px;border:1px solid var(--line);background:var(--bg-soft)}
+    .detail pre{white-space:pre-wrap;font-family:inherit;margin:0;color:var(--text)}
+    .status-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .login-box{max-width:360px}
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <header class="nav">
+    <a class="brand" href="/">Artist's Studio</a>
+    <nav class="nav-actions"><span class="muted" id="who">Admin</span></nav>
+  </header>
+  <div class="admin-wrap">
+    <div id="loginGate" class="login-box">
+      <h1>Admin</h1>
+      <p class="muted">Sign in to open Contact inbox.</p>
+      <form id="adminLogin" class="form">
+        <label><span>Username</span><input name="username" required value="admin"/></label>
+        <label><span>Password</span><input name="password" type="password" required/></label>
+        <p class="form-error hidden" id="loginErr"></p>
+        <button class="btn btn-block" type="submit">Sign in</button>
+      </form>
+    </div>
+    <div id="inboxView" class="hidden">
+      <h1>Contact</h1>
+      <p class="muted" id="inboxMeta">Website form submissions</p>
+      <div id="list"></div>
+      <div id="detail" class="detail hidden"></div>
+    </div>
+  </div>
+  <script>
+    const API = '/api/v1';
+    const TOKEN_KEY = 'as_token';
+    const token = () => localStorage.getItem(TOKEN_KEY);
+    const $ = (id) => document.getElementById(id);
+
+    async function api(path, opts = {}) {
+      const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+      if (token()) headers.Authorization = 'Bearer ' + token();
+      const res = await fetch(API + path, { ...opts, headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      return data;
+    }
+
+    async function boot() {
+      if (!token()) return;
+      try {
+        const { user } = await api('/auth/me');
+        if (user.role !== 'admin') throw new Error('Admin only');
+        $('who').textContent = '@' + user.username;
+        $('loginGate').classList.add('hidden');
+        $('inboxView').classList.remove('hidden');
+        await loadList();
+      } catch {
+        localStorage.removeItem(TOKEN_KEY);
+      }
+    }
+
+    async function loadList() {
+      const data = await api('/admin/contacts');
+      $('inboxMeta').textContent = data.unread + ' new · ' + data.items.length + ' total';
+      $('list').innerHTML = data.items.map((c) => `
+        <div class="inbox-item ${c.status === 'new' ? 'new' : ''}" data-id="${c.id}">
+          <h3>${escape(c.name)}${c.username ? ' · @' + escape(c.username) : ''}${c.status === 'new' ? '<span class="badge">New</span>' : ''}</h3>
+          <p>${escape((c.message || '').slice(0, 100))}${(c.message||'').length > 100 ? '…' : ''}</p>
+          <p style="margin-top:6px;font-size:.78rem">${escape(c.status)} · ${escape(new Date(c.created_at).toLocaleString())}</p>
+        </div>`).join() || '<p class="muted">No contact messages yet.</p>';
+      // fix join - should be join('')
+      $('list').innerHTML = data.items.length ? data.items.map((c) => `
+        <div class="inbox-item ${c.status === 'new' ? 'new' : ''}" data-id="${c.id}">
+          <h3>${escape(c.name)}${c.username ? ' · @' + escape(c.username) : ''}${c.status === 'new' ? '<span class="badge">New</span>' : ''}</h3>
+          <p>${escape((c.message || '').slice(0, 100))}${(c.message||'').length > 100 ? '…' : ''}</p>
+          <p style="margin-top:6px;font-size:.78rem">${escape(c.status)} · ${escape(new Date(c.created_at).toLocaleString())}</p>
+        </div>`).join('') : '<p class="muted">No contact messages yet.</p>';
+    }
+
+    function escape(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    $('list').addEventListener('click', async (e) => {
+      const row = e.target.closest('[data-id]');
+      if (!row) return;
+      const { item } = await api('/admin/contacts/' + row.dataset.id);
+      if (item.status === 'new') {
+        await api('/admin/contacts/' + item.id, { method: 'PATCH', body: JSON.stringify({ status: 'read' }) });
+        item.status = 'read';
+        loadList();
+      }
+      const d = $('detail');
+      d.classList.remove('hidden');
+      d.innerHTML = `
+        <h3 style="margin:0 0 8px;font-family:var(--font-display);font-weight:500;font-size:1.4rem">${escape(item.name)}</h3>
+        <p class="muted" style="margin:0 0 12px">${item.username ? '@' + escape(item.username) + ' · ' : ''}${item.email ? escape(item.email) + ' · ' : ''}${item.phone ? escape(item.phone) : ''}</p>
+        <pre>${escape(item.message)}</pre>
+        <div class="status-row">
+          <button type="button" class="btn btn-sm" data-st="replied" data-id="${item.id}">Mark replied</button>
+          <button type="button" class="btn btn-sm btn-ghost" data-st="closed" data-id="${item.id}">Close</button>
+        </div>`;
+    });
+
+    $('detail').addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-st]');
+      if (!b) return;
+      await api('/admin/contacts/' + b.dataset.id, { method: 'PATCH', body: JSON.stringify({ status: b.dataset.st }) });
+      loadList();
+      b.textContent = 'Updated';
+    });
+
+    $('adminLogin').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('loginErr').classList.add('hidden');
+      const fd = new FormData(e.target);
+      try {
+        const data = await api('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ username: fd.get('username'), password: fd.get('password') })
+        });
+        if (data.user.role !== 'admin') throw new Error('Admin only');
+        localStorage.setItem(TOKEN_KEY, data.token);
+        boot();
+      } catch (err) {
+        $('loginErr').textContent = err.message;
+        $('loginErr').classList.remove('hidden');
+      }
+    });
+
+    boot();
+  </script>
+</body>
+</html>

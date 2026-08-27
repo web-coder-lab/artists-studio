@@ -1,18 +1,13 @@
 # Artist's Studio
 
 ## Phase 1 — Auth
-Register / login / JWT / me
+## Phase 2 — Public CMS + WhatsApp prefill
+## Phase 3 — Contact form + Admin Contact inbox
 
-## Phase 2 — Public site from API
-- `GET /api/v1/site`
-- `GET /api/v1/portfolio`
-- `GET /api/v1/reels`
-- `GET /api/v1/socials`
-- `GET /api/v1/policies`
-- `GET /api/v1/whatsapp-prefill` (Username + Name + warning flow)
+- `POST /api/v1/contact`
+- `GET  /api/v1/admin/contacts`
+- `GET  /api/v1/admin/contacts/:id`
+- `PATCH /api/v1/admin/contacts/:id` `{ "status": "read|replied|closed" }`
 
-Seed admin: `admin` / `admin123`
-
-```bash
-npm install && npm start
-```
+Admin UI: `/admin.html`  
+Seed: `admin` / `admin123`
