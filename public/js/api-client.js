@@ -1,14 +1,16 @@
-/** Shared fetch for Artist's Studio — timeout, auth, errors */
+/** Shared fetch — cookies + localStorage session */
 (function (global) {
   const API_BASE = '/api/v1';
   const TOKEN_KEY = 'as_token';
 
   function getToken() {
-    return localStorage.getItem(TOKEN_KEY);
+    try { return localStorage.getItem(TOKEN_KEY); } catch (_) { return null; }
   }
   function setToken(t) {
-    if (t) localStorage.setItem(TOKEN_KEY, t);
-    else localStorage.removeItem(TOKEN_KEY);
+    try {
+      if (t) localStorage.setItem(TOKEN_KEY, t);
+      else localStorage.removeItem(TOKEN_KEY);
+    } catch (_) {}
   }
 
   async function api(path, opts = {}) {
@@ -28,6 +30,7 @@
       res = await fetch(API_BASE + path, {
         ...opts,
         headers,
+        credentials: 'include',
         signal: ctrl.signal,
         body:
           opts.body != null && !(opts.body instanceof FormData) && typeof opts.body === 'object'
@@ -47,9 +50,14 @@
       try { data = await res.json(); } catch (_) { data = {}; }
     }
 
+    // restore token from /auth/me when cookie session exists
+    if (data.token && path.indexOf('/auth/') === 0) {
+      setToken(data.token);
+    }
+
     if (res.status === 401) {
-      // session expired / invalid — clear identity except on login/register paths
       if (!path.startsWith('/auth/login') && !path.startsWith('/auth/register')) {
+        // only clear on definitive auth failure, not network
         setToken(null);
       }
       const err = new Error(data.error || 'Unauthorized');

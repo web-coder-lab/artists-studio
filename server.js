@@ -115,11 +115,49 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts. Try again later.' }
 });
 
+
+function parseCookies(req) {
+  const header = req.headers.cookie || '';
+  const out = {};
+  header.split(';').forEach((part) => {
+    const i = part.indexOf('=');
+    if (i === -1) return;
+    const k = part.slice(0, i).trim();
+    const v = part.slice(i + 1).trim();
+    if (k) out[k] = decodeURIComponent(v);
+  });
+  return out;
+}
+
+function extractToken(req) {
+  const h = req.headers.authorization || '';
+  if (h.startsWith('Bearer ')) return h.slice(7).trim();
+  const cookies = parseCookies(req);
+  return cookies.as_token || cookies.as_session || null;
+}
+
+function setAuthCookie(res, token) {
+  const maxAge = 7 * 24 * 60 * 60; // 7 days
+  const secure = process.env.RENDER || process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', [
+    'as_token=' + encodeURIComponent(token) + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + maxAge + secure,
+    'as_logged=1; Path=/; SameSite=Lax; Max-Age=' + maxAge + secure
+  ]);
+}
+
+function clearAuthCookie(res) {
+  const secure = process.env.RENDER || process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', [
+    'as_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' + secure,
+    'as_logged=; Path=/; SameSite=Lax; Max-Age=0' + secure
+  ]);
+}
+
 function signToken(user) {
   return jwt.sign(
     { sub: user.id, username: user.username, role: user.role },
     JWT_SECRET_EFFECTIVE,
-    { expiresIn: '12h' }
+    { expiresIn: '7d' }
   );
 }
 
@@ -387,6 +425,7 @@ app.post('/api/v1/auth/register', authLimiter, (req, res) => {
   save(db);
 
   const token = signToken(user);
+  setAuthCookie(res, token);
   res.status(201).json({ token, user: publicUser(user) });
 });
 
@@ -413,14 +452,18 @@ app.post('/api/v1/auth/login', authLimiter, (req, res) => {
   const sid = sec.createSession(db, user, ip, req.headers['user-agent']);
   sec.audit(db, { action: 'login_ok', username: user.username, role: user.role, ip });
   save(db);
-  res.json({ token: signToken(user), session_id: sid, user: publicUser(user) });
+  const token = signToken(user);
+  setAuthCookie(res, token);
+  res.json({ token, session_id: sid, user: publicUser(user) });
 });
 
 app.get('/api/v1/auth/me', auth, (req, res) => {
-  res.json({ user: publicUser(req.user) });
+  const token = extractToken(req);
+  res.json({ user: publicUser(req.user), token: token || undefined });
 });
 
-app.post('/api/v1/auth/logout', auth, (_req, res) => {
+app.post('/api/v1/auth/logout', auth, (req, res) => {
+  clearAuthCookie(res);
   res.json({ ok: true });
 });
 

@@ -152,11 +152,20 @@ async function openWhatsAppFlow() {
 }
 
 async function refreshSession() {
-  if (!token()) { currentUser = null; renderNavAuth(); return; }
+  // Cookie + localStorage: try /auth/me even if local token missing (HttpOnly cookie may still be valid)
   try {
-    const { user } = await api('/auth/me');
-    currentUser = user;
-  } catch { setToken(null); currentUser = null; }
+    const data = await api('/auth/me');
+    currentUser = data.user;
+    if (data.token) setToken(data.token);
+  } catch (e) {
+    if (e && e.auth) {
+      setToken(null);
+      currentUser = null;
+    } else if (!token()) {
+      currentUser = null;
+    }
+    // network error: keep existing token so refresh does not force logout
+  }
   renderNavAuth();
 }
 
