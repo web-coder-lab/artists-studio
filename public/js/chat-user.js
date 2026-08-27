@@ -50,13 +50,13 @@
     const em = socials.email || '';
     const parts = [];
     if (wa) {
-      parts.push(`<button type="button" class="channel-btn" data-channel="whatsapp">WhatsApp</button>`);
+      parts.push(`<button type="button" class="channel-btn" data-channel="whatsapp" title="WhatsApp">💬</button>`);
     }
     if (ig) {
-      parts.push(`<a class="channel-btn" href="${escape(ig)}" target="_blank" rel="noopener">Instagram</a>`);
+      parts.push(`<a class="channel-btn" href="${escape(ig)}" target="_blank" rel="noopener" title="Instagram">📷</a>`);
     }
     if (em) {
-      parts.push(`<a class="channel-btn" href="mailto:${escape(em)}">Email</a>`);
+      parts.push(`<a class="channel-btn" href="mailto:${escape(em)}" title="Email">✉</a>`);
     }
     return parts.join('') || '<span class="muted">No channels configured</span>';
   }
@@ -300,7 +300,7 @@
       <div class="chat-app">
         <div class="chat-header">
           <div>
-            <h1>Artist's Studio</h1>
+            <h1>✉</h1>
             <p class="sub">Private conversation</p>
           </div>
           <div class="chat-header-actions">
@@ -309,8 +309,8 @@
         </div>
         <div class="channel-row" id="frontChannels">${channelButtonsHtml()}</div>
         <div class="call-bar">
-          <button type="button" class="primary" id="btnVoice">Voice call</button>
-          <button type="button" id="btnVideo">Video call</button>
+          <button type="button" class="primary" id="btnVoice" title="Voice">📞</button>
+          <button type="button" id="btnVideo" title="Video">🎥</button>
         </div>
         <div class="chat-thread-wrap">
           <div class="chat-thread" id="thread"></div>
@@ -320,7 +320,7 @@
             </label>
             <span class="file-chip hidden" id="fileChip"></span>
             <textarea name="body" rows="1" placeholder="Type a message" id="msgInput"></textarea>
-            <button type="submit">Send</button>
+            <button type="submit" title="Send">➤</button>
           </form>
         </div>
       </div>`;

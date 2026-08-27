@@ -8,7 +8,8 @@
   <link rel="stylesheet" href="/css/studio.css"/>
   <link rel="stylesheet" href="/css/chat.css"/>
   <style>
-    .admin-wrap{max-width:1000px;margin:0 auto;padding:12px 12px 88px}
+    .admin-wrap{max-width:1000px;margin:0 auto;padding:8px 8px 88px}
+    #panel-chat .chat-app{height:calc(100vh - 160px);max-width:100%;border-radius:12px}
     .tabs{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap}
     .tabs button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:8px 12px;font:inherit;cursor:pointer;font-size:.82rem}
     .tabs button.active{color:var(--text);border-color:var(--accent);background:var(--accent-dim)}
@@ -66,6 +67,7 @@
         <button type="button" data-panel="reels">Reels</button>
         <button type="button" data-panel="users">Users</button>
         <button type="button" data-panel="versions">Publish</button>
+        <button type="button" data-panel="security">Security</button>
       </div>
 
       <section class="panel active" id="panel-home">
@@ -159,6 +161,15 @@
         <div id="userList"></div>
       </section>
 
+      <section class="panel" id="panel-security">
+        <div class="stat-grid" id="secStats"></div>
+        <p class="muted" id="secIp"></p>
+        <button type="button" class="btn btn-ghost" id="btnRevokeAll">Revoke all sessions</button>
+        <h3 style="margin-top:18px;font-family:var(--font-display);font-weight:500">Recent events</h3>
+        <div id="secAudit"></div>
+        <h3 style="margin-top:18px;font-family:var(--font-display);font-weight:500">Sessions</h3>
+        <div id="secSessions"></div>
+      </section>
       <section class="panel" id="panel-versions">
         <p class="muted" id="verMeta"></p>
         <button type="button" class="btn" id="btnPublish">Publish snapshot</button>

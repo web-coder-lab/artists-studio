@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const { load, save } = require('./db');
+const sec = require('./security');
 const fs = require('fs');
 const multer = require('multer');
 const crypto = require('crypto');
@@ -14,7 +15,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'artists-studio-phase1-dev-secret-c
 const ROOT = __dirname;
 
 const app = express();
-app.use(cors());
+app.use(sec.securityHeaders);
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(ROOT, 'public')));
 app.use('/media/public', express.static(path.join(__dirname, 'uploads', 'public')));
@@ -124,8 +126,22 @@ function auth(req, res, next) {
 
 
 function adminOnly(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
+  if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'superadmin')) {
     return res.status(403).json({ error: 'Admin only' });
+  }
+  if (!sec.ipAllowed(req)) {
+    sec.audit(load(), { action: 'admin_ip_blocked', ip: sec.clientIp(req), path: req.path });
+    return res.status(403).json({ error: 'IP not allowed' });
+  }
+  next();
+}
+
+function requireStaff(req, res, next) {
+  if (!req.user || !['admin', 'superadmin', 'moderator'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Staff only' });
+  }
+  if (!sec.ipAllowed(req)) {
+    return res.status(403).json({ error: 'IP not allowed' });
   }
   next();
 }
@@ -143,28 +159,28 @@ function publicUser(u) {
 }
 
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'artists-studio', phase: 10 });
+  res.json({ status: 'ok', service: 'artists-studio', phase: 11 });
 });
 
 // ——— Public CMS ———
-app.get('/api/v1/site', (_req, res) => {
+app.get('/api/v1/site', auth, (req, res) => {
   const db = load();
   res.json({ site: db.site, pages: db.pages, theme: db.theme || {} });
 });
 
-app.get('/api/v1/pages/:slug', (req, res) => {
+app.get('/api/v1/pages/:slug', auth, (req, res) => {
   const db = load();
   const page = db.pages[req.params.slug];
   if (!page || !page.published) return res.status(404).json({ error: 'Page not found' });
   res.json({ page, site: db.site });
 });
 
-app.get('/api/v1/portfolio', (_req, res) => {
+app.get('/api/v1/portfolio', auth, (req, res) => {
   const db = load();
   res.json({ items: db.portfolio || [] });
 });
 
-app.get('/api/v1/reels', authOptional, (req, res) => {
+app.get('/api/v1/reels', auth, (req, res) => {
   const db = load();
   const items = (db.reels || []).map((r) => {
     const likes = (db.reel_likes || []).filter((x) => x.reel_id === r.id).length;
@@ -180,19 +196,19 @@ app.get('/api/v1/reels', authOptional, (req, res) => {
   res.json({ items });
 });
 
-app.get('/api/v1/socials', (_req, res) => {
+app.get('/api/v1/socials', auth, (req, res) => {
   const db = load();
   res.json({ socials: db.socials || {} });
 });
 
-app.get('/api/v1/policies/:slug', (req, res) => {
+app.get('/api/v1/policies/:slug', auth, (req, res) => {
   const db = load();
   const pol = (db.policies || {})[req.params.slug];
   if (!pol) return res.status(404).json({ error: 'Policy not found' });
   res.json({ policy: { slug: req.params.slug, ...pol } });
 });
 
-app.get('/api/v1/policies', (_req, res) => {
+app.get('/api/v1/policies', auth, (req, res) => {
   const db = load();
   res.json({ policies: db.policies || {} });
 });
@@ -338,15 +354,25 @@ app.post('/api/v1/auth/login', authLimiter, (req, res) => {
   const password = String(req.body?.password || '');
   const db = load();
   const user = db.users.find((u) => u.username.toLowerCase() === username.toLowerCase());
+  const ip = sec.clientIp(req);
+  if (sec.isLocked(db, username)) {
+    return res.status(429).json({ error: 'Account temporarily locked. Try later.' });
+  }
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    sec.recordFailedLogin(db, username, ip);
+    sec.audit(db, { action: 'login_failed', username, ip });
+    save(db);
     return res.status(401).json({ error: 'Invalid username or password' });
   }
   if (user.status !== 'active') {
     return res.status(403).json({ error: 'Account disabled' });
   }
+  sec.clearFailed(db, username);
   user.last_login = new Date().toISOString();
+  const sid = sec.createSession(db, user, ip, req.headers['user-agent']);
+  sec.audit(db, { action: 'login_ok', username: user.username, role: user.role, ip });
   save(db);
-  res.json({ token: signToken(user), user: publicUser(user) });
+  res.json({ token: signToken(user), session_id: sid, user: publicUser(user) });
 });
 
 app.get('/api/v1/auth/me', auth, (req, res) => {
@@ -940,6 +966,51 @@ app.get('/api/v1/reels/:id/comments', (req, res) => {
 });
 
 
+
+// ——— Phase 11 Security ———
+app.get('/api/v1/admin/security/dashboard', auth, adminOnly, (req, res) => {
+  const db = load();
+  const s = sec.ensureSecurity(db);
+  const since = Date.now() - 24 * 60 * 60 * 1000;
+  const failed24 = s.failed_logins.filter((f) => new Date(f.at).getTime() > since).length;
+  res.json({
+    failed_logins_24h: failed24,
+    active_sessions: s.sessions.length,
+    locked_accounts: Object.keys(s.locks || {}).length,
+    audit_count: s.audit.length,
+    recent_audit: s.audit.slice(0, 30),
+    recent_failed: s.failed_logins.slice(0, 20),
+    sessions: s.sessions.slice(0, 30),
+    admin_ips_configured: sec.ADMIN_IPS.length > 0,
+    your_ip: sec.clientIp(req)
+  });
+});
+
+app.post('/api/v1/admin/security/sessions/:id/revoke', auth, adminOnly, (req, res) => {
+  const db = load();
+  sec.revokeSession(db, req.params.id);
+  sec.audit(db, { action: 'session_revoked', session_id: req.params.id, by: req.user.username, ip: sec.clientIp(req) });
+  save(db);
+  res.json({ ok: true });
+});
+
+app.post('/api/v1/admin/security/sessions/revoke-all', auth, adminOnly, (req, res) => {
+  const db = load();
+  const s = sec.ensureSecurity(db);
+  const n = s.sessions.length;
+  s.sessions = [];
+  sec.audit(db, { action: 'sessions_revoke_all', by: req.user.username, count: n, ip: sec.clientIp(req) });
+  save(db);
+  res.json({ ok: true, revoked: n });
+});
+
+app.get('/api/v1/admin/security/audit', auth, adminOnly, (req, res) => {
+  const db = load();
+  const s = sec.ensureSecurity(db);
+  res.json({ items: s.audit.slice(0, 100) });
+});
+
+
 // ——— Calls (Phase 7) ———
 function ensureCalls(db) {
   if (!Array.isArray(db.calls)) db.calls = [];
@@ -1111,6 +1182,18 @@ app.post('/api/v1/chat/artist', auth, (req, res) => {
   res.status(201).json({ conversation_id: conv.id, message: publicMessage(msg) });
 });
 
+
+
+// Hard admin path (Phase 11) — not /admin
+app.get(sec.ADMIN_PATH, (req, res) => {
+  if (!sec.ipAllowed(req)) {
+    return res.status(403).send('Forbidden');
+  }
+  res.sendFile(path.join(ROOT, 'public', 'admin.html'));
+});
+app.get(['/admin', '/admin.html', '/admin/'], (_req, res) => {
+  res.status(404).send('Not found');
+});
 
 app.get('/', (_req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'index.html'));

@@ -14,7 +14,7 @@ function defaultDb() {
         username: 'admin',
         name: 'Studio Admin',
         password_hash: bcrypt.hashSync('admin123', 10),
-        role: 'admin',
+        role: 'superadmin',
         status: 'active',
         created_at: new Date().toISOString(),
         last_login: null

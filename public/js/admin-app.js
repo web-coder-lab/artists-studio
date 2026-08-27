@@ -253,6 +253,7 @@ async function loadConversations() {
 
 async function loadThread(id, scroll = true) {
   activeConv = id;
+  document.getElementById('adminChat')?.classList.add('thread-open');
   const data = await api('/conversations/' + id + '/messages');
   $('threadEmpty').classList.add('hidden');
   const active = $('threadActive');
@@ -301,6 +302,7 @@ $('compose').addEventListener('submit', async (e) => {
 
 $('backList').addEventListener('click', () => {
   activeConv = null;
+  document.getElementById('adminChat')?.classList.remove('thread-open');
   $('threadActive').classList.add('hidden');
   $('threadEmpty').classList.remove('hidden');
 });
@@ -381,6 +383,7 @@ function showPanel(name) {
   if (name === 'reels') loadReelsAdmin();
   if (name === 'users') loadUsers();
   if (name === 'versions') loadVersions();
+  if (name === 'security') loadSecurity();
   if (name === 'contact') loadContacts();
   if (name === 'chat') loadConversations();
 }
@@ -578,3 +581,34 @@ $('verList')?.addEventListener('click', async (e) => {
 
 // show bottom nav when logged in — hook into existing boot success
 const _origBoot = typeof boot === 'function' ? boot : null;
+
+async function loadSecurity() {
+  try {
+    const d = await api('/admin/security/dashboard');
+    $('secStats').innerHTML = [
+      ['Failed logins 24h', d.failed_logins_24h],
+      ['Active sessions', d.active_sessions],
+      ['Locked', d.locked_accounts],
+      ['Audit events', d.audit_count]
+    ].map(([k,v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+    $('secIp').textContent = 'Your IP: ' + (d.your_ip || '') + (d.admin_ips_configured ? ' · allowlist ON' : ' · allowlist OFF (set ADMIN_ALLOWED_IPS)');
+    $('secAudit').innerHTML = (d.recent_audit || []).map((a) =>
+      `<div class="list-row"><div><strong>${escape(a.action)}</strong> ${escape(a.username||a.by||'')} <div class="muted">${escape(a.at)} · ${escape(a.ip||'')}</div></div></div>`
+    ).join('') || '<p class="muted">No events</p>';
+    $('secSessions').innerHTML = (d.sessions || []).map((s) =>
+      `<div class="list-row"><div>@${escape(s.username)} · ${escape(s.ip)}<div class="muted">${escape(s.created_at)}</div></div>
+      <button type="button" class="btn btn-sm btn-ghost" data-rev="${escape(s.id)}">Revoke</button></div>`
+    ).join('') || '<p class="muted">No sessions</p>';
+  } catch (e) { console.error(e); }
+}
+$('secSessions')?.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-rev]');
+  if (!b) return;
+  await api('/admin/security/sessions/' + b.dataset.rev + '/revoke', { method: 'POST', body: '{}' });
+  loadSecurity();
+});
+$('btnRevokeAll')?.addEventListener('click', async () => {
+  if (!confirm('Revoke all sessions?')) return;
+  await api('/admin/security/sessions/revoke-all', { method: 'POST', body: '{}' });
+  loadSecurity();
+});

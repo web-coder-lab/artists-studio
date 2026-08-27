@@ -1,15 +1,26 @@
-# Artist's Studio — Phase 10
+# Artist's Studio — Phase 11 Security
 
 **API:** https://artists-studio.onrender.com  
-**Admin web (temp):** /admin.html  
-**Admin Android (native Compose):** `android-admin/`  
-**Database repo:** https://github.com/web-coder-lab/dstabase7837638362826373  
-Folder: `Artists studio/data/`
 
-## Phase 10
-- Demo portfolio/reels cleared — gallery upload only
-- TikTok-style reels feed (like, save, comment, copy link)
-- Android admin APK project (Gate + Login + Dashboard + lists)
-- No WebView in admin app design
+## Admin panel (hard path)
+`/Hjwihebdiggeksyevkdibendkxbskjwowhdjfidvbebd`  
 
-Admin seed still created by API on first boot: `admin` / `admin123`
+`/admin` and `/admin.html` → **404**
+
+## IP allowlist
+Render env: `ADMIN_ALLOWED_IPS=1.2.3.4,5.6.7.8`  
+Empty = all IPs (dev only). Admin APIs + hard path check allowlist.
+
+## Site lock
+All public content APIs require JWT. UI shows sign-in wall until identity exists.
+
+## Security
+- Failed login lock (5 / 15min)
+- Sessions + revoke
+- Audit log
+- Security dashboard in admin
+- Security headers + CSP
+- RBAC: superadmin / admin / moderator / user
+
+## Symbols UI
+Nav and Contact channels use symbols (not word labels).

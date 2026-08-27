@@ -27,12 +27,12 @@ function escapeHtml(s) {
 
 function navHtml() {
   const links = [
-    ['/', 'home', 'Home'],
-    ['/about.html', 'about', 'About'],
-    ['/portfolio.html', 'portfolio', 'Portfolio'],
-    ['/reels.html', 'reels', 'Reels'],
-    ['/services.html', 'services', 'Services'],
-    ['/contact.html', 'contact', 'Contact'],
+    ['/', 'home', '⌂'],
+    ['/about.html', 'about', '◎'],
+    ['/portfolio.html', 'portfolio', '▣'],
+    ['/reels.html', 'reels', '▶'],
+    ['/services.html', 'services', '✦'],
+    ['/contact.html', 'contact', '✉'],
   ];
   const linkEls = links.map(([href, key, label]) =>
     `<a href="${href}" class="${page === key ? 'active' : ''}">${label}</a>`
@@ -49,7 +49,7 @@ function navHtml() {
 function footHtml() {
   return `<footer class="foot">
     <span>Artist's Studio</span>
-    <span><a href="/policies.html">Policies</a></span>
+    <span class="muted">◆</span>
   </footer>`;
 }
 
@@ -285,8 +285,9 @@ function bindGlobal() {
       setToken(data.token);
       currentUser = data.user;
       closeModal();
+      document.getElementById('authWall')?.remove();
       renderNavAuth();
-      if (page === 'account') renderPage();
+      location.reload();
     } catch (err) {
       if ($('authError')) {
         $('authError').textContent = err.message;
@@ -307,7 +308,31 @@ async function boot() {
   if (modals) modals.innerHTML = modalsHtml();
   bindGlobal();
   await refreshSession();
+  // Phase 11: site locked until identity
+  if (!token() && page !== 'contact') {
+    const main = document.querySelector('main');
+    if (main && page !== 'contact') {
+      // keep structure; lock overlay
+    }
+    showAuthWall();
+    return;
+  }
   try { await renderPage(); } catch (e) { console.error(e); }
+}
+
+function showAuthWall() {
+  const main = document.querySelector('main') || document.body;
+  const wall = document.createElement('div');
+  wall.id = 'authWall';
+  wall.style.cssText = 'position:fixed;inset:0;z-index:60;background:#0a0a0b;display:flex;align-items:center;justify-content:center;padding:24px';
+  wall.innerHTML = '<div style="max-width:380px;text-align:center">' +
+    '<p style="color:#c4a574;letter-spacing:.14em;font-size:.72rem;text-transform:uppercase">Artist\'s Studio</p>' +
+    '<h1 style="font-family:Cormorant Garamond,Georgia,serif;font-weight:500;font-size:2rem;margin:8px 0 12px;color:#f4f1ea">Sign in required</h1>' +
+    '<p style="color:#9c978c;margin:0 0 20px">Every page is locked until your identity is verified.</p>' +
+    '<button type="button" class="btn" data-open="login" style="margin:4px">Sign in</button> ' +
+    '<button type="button" class="btn btn-ghost" data-open="register" style="margin:4px">Join</button></div>';
+  document.body.appendChild(wall);
+  renderNavAuth();
 }
 
 boot();
