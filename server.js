@@ -11,7 +11,17 @@ const multer = require('multer');
 const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'artists-studio-phase1-dev-secret-change-me';
+const JWT_SECRET = process.env.JWT_SECRET || '';
+let JWT_SECRET_EFFECTIVE = JWT_SECRET;
+if (!JWT_SECRET_EFFECTIVE || JWT_SECRET_EFFECTIVE.length < 32) {
+  // Prefer env JWT_SECRET in production. Fallback keeps service up but is weaker.
+  JWT_SECRET_EFFECTIVE = JWT_SECRET_EFFECTIVE || 'artists-studio-dev-only-not-for-production-use!!';
+  console.warn('SECURITY: Set JWT_SECRET (32+ chars) via environment for production.');
+  if (process.env.REQUIRE_JWT_SECRET === '1') {
+    console.error('FATAL: REQUIRE_JWT_SECRET=1 and JWT_SECRET missing/short');
+    process.exit(1);
+  }
+}
 const ROOT = __dirname;
 
 const app = express();
@@ -24,7 +34,19 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(cors({ origin: true, credentials: true }));
+const CORS_ORIGINS = String(process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // same-origin / curl
+    if (!CORS_ORIGINS.length) return cb(null, true); // dev default open
+    if (CORS_ORIGINS.includes(origin) || CORS_ORIGINS.includes('*')) return cb(null, true);
+    return cb(new Error('CORS blocked'));
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(ROOT, 'public')));
 app.use('/media/public', express.static(path.join(__dirname, 'uploads', 'public')));
@@ -96,8 +118,8 @@ const authLimiter = rateLimit({
 function signToken(user) {
   return jwt.sign(
     { sub: user.id, username: user.username, role: user.role },
-    JWT_SECRET,
-    { expiresIn: '7d' }
+    JWT_SECRET_EFFECTIVE,
+    { expiresIn: '12h' }
   );
 }
 
@@ -106,7 +128,7 @@ function authOptional(req, _res, next) {
   const token = h.startsWith('Bearer ') ? h.slice(7) : null;
   if (!token) return next();
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET_EFFECTIVE);
     const db = load();
     const user = db.users.find((u) => u.id === payload.sub);
     if (user && user.status === 'active') req.user = user;
@@ -119,7 +141,7 @@ function auth(req, res, next) {
   const token = h.startsWith('Bearer ') ? h.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET_EFFECTIVE);
     const db = load();
     const user = db.users.find((u) => u.id === payload.sub);
     if (!user || user.status !== 'active') {
@@ -1283,7 +1305,7 @@ wss.on('connection', (ws) => {
     try { data = JSON.parse(String(raw)); } catch { return; }
     if (data.type === 'auth' && data.token) {
       try {
-        const payload = jwt.verify(data.token, JWT_SECRET);
+        const payload = jwt.verify(data.token, JWT_SECRET_EFFECTIVE);
         const db = load();
         const user = db.users.find((u) => u.id === payload.sub);
         if (!user || user.status !== 'active') {
@@ -1334,6 +1356,13 @@ setInterval(() => {
     ws.ping();
   }
 }, 30000);
+
+app.use((err, _req, res, _next) => {
+  console.error(err && err.message ? err.message : err);
+  if (res.headersSent) return;
+  const status = err.status || 500;
+  res.status(status).json({ error: status >= 500 ? 'Server error' : (err.message || 'Error') });
+});
 
 server.listen(PORT, () => console.log("Artist's Studio on :" + PORT + " (HTTP + WS /ws)"));
 

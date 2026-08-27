@@ -113,6 +113,9 @@ function securityHeaders(_req, res, next) {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
   res.setHeader('X-XSS-Protection', '0');
+  if (process.env.RENDER || process.env.FORCE_HSTS) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
   // light CSP
   res.setHeader(
     'Content-Security-Policy',
