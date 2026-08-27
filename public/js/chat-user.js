@@ -217,8 +217,17 @@
       bindChannelClicks(guest);
     }
 
+    // Restore session from cookie if localStorage empty
+    try {
+      const me = await api('/auth/me');
+      if (me.token) {
+        try { localStorage.setItem(TOKEN_KEY, me.token); } catch (_) {}
+        if (window.StudioAPI) window.StudioAPI.setToken(me.token);
+      }
+    } catch {
+      if (!token()) return;
+    }
     if (!token()) return;
-    try { await api('/auth/me'); } catch { return; }
 
     $('gate')?.classList.add('hidden');
     const root = $('chatRoot');

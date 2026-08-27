@@ -137,7 +137,7 @@ function extractToken(req) {
 }
 
 function setAuthCookie(res, token) {
-  const maxAge = 7 * 24 * 60 * 60; // 7 days
+  const maxAge = 30 * 24 * 60 * 60; // 30 days
   const secure = process.env.RENDER || process.env.NODE_ENV === 'production' ? '; Secure' : '';
   res.setHeader('Set-Cookie', [
     'as_token=' + encodeURIComponent(token) + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + maxAge + secure,
@@ -157,7 +157,7 @@ function signToken(user) {
   return jwt.sign(
     { sub: user.id, username: user.username, role: user.role },
     JWT_SECRET_EFFECTIVE,
-    { expiresIn: '7d' }
+    { expiresIn: '30d' }
   );
 }
 
@@ -1281,16 +1281,18 @@ app.get(sec.ADMIN_PATH, (req, res) => {
   res.sendFile(path.join(ROOT, 'public', '_panel.html'));
 });
 app.get(['/admin', '/admin.html', '/admin/'], (_req, res) => {
-  res.status(404).send('Not found');
+  res.status(404).sendFile(path.join(ROOT, 'public', '404.html'));
 });
 
 app.get('/', (_req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'index.html'));
 });
 
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) return next();
-  res.sendFile(path.join(ROOT, 'public', 'index.html'));
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  res.status(404).sendFile(path.join(ROOT, 'public', '404.html'));
 });
 
 
