@@ -91,7 +91,7 @@ function publicUser(u) {
 }
 
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'artists-studio', phase: 3 });
+  res.json({ status: 'ok', service: 'artists-studio', phase: 4 });
 });
 
 // ——— Public CMS ———
@@ -294,6 +294,197 @@ app.post('/api/v1/auth/logout', auth, (_req, res) => {
   res.json({ ok: true });
 });
 
+
+// ——— Messaging / Contact Artist (Phase 4) ———
+function ensureChatSeq(db) {
+  if (!Array.isArray(db.conversations)) db.conversations = [];
+  if (!Array.isArray(db.messages)) db.messages = [];
+  if (db._seq.conversations == null) db._seq.conversations = db.conversations.length;
+  if (db._seq.messages == null) db._seq.messages = db.messages.length;
+}
+
+function getOrCreateUserConversation(db, user) {
+  ensureChatSeq(db);
+  let conv = db.conversations.find((c) => c.user_id === user.id && c.type === 'artist');
+  if (!conv) {
+    const id = ++db._seq.conversations;
+    conv = {
+      id,
+      type: 'artist',
+      user_id: user.id,
+      username: user.username,
+      name: user.name,
+      last_message: null,
+      last_at: null,
+      user_unread: 0,
+      admin_unread: 0,
+      created_at: new Date().toISOString()
+    };
+    db.conversations.push(conv);
+  }
+  return conv;
+}
+
+function publicMessage(m) {
+  return {
+    id: m.id,
+    conversation_id: m.conversation_id,
+    sender_role: m.sender_role,
+    sender_id: m.sender_id,
+    sender_name: m.sender_name,
+    body: m.body,
+    status: m.status,
+    created_at: m.created_at
+  };
+}
+
+// User: ensure conversation + list (single artist thread)
+app.get('/api/v1/conversations', auth, (req, res) => {
+  const db = load();
+  if (req.user.role === 'admin') {
+    ensureChatSeq(db);
+    const items = db.conversations
+      .slice()
+      .sort((a, b) => String(b.last_at || b.created_at).localeCompare(String(a.last_at || a.created_at)))
+      .map((c) => ({
+        id: c.id,
+        type: c.type,
+        user_id: c.user_id,
+        username: c.username,
+        name: c.name,
+        last_message: c.last_message,
+        last_at: c.last_at,
+        unread: c.admin_unread || 0
+      }));
+    const unread = items.reduce((n, x) => n + (x.unread || 0), 0);
+    return res.json({ items, unread });
+  }
+  const conv = getOrCreateUserConversation(db, req.user);
+  save(db);
+  res.json({
+    items: [{
+      id: conv.id,
+      type: conv.type,
+      title: "Artist's Studio",
+      last_message: conv.last_message,
+      last_at: conv.last_at,
+      unread: conv.user_unread || 0
+    }]
+  });
+});
+
+app.get('/api/v1/conversations/:id/messages', auth, (req, res) => {
+  const db = load();
+  ensureChatSeq(db);
+  const id = +req.params.id;
+  const conv = db.conversations.find((c) => c.id === id);
+  if (!conv) return res.status(404).json({ error: 'Conversation not found' });
+  if (req.user.role !== 'admin' && conv.user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const msgs = db.messages
+    .filter((m) => m.conversation_id === id)
+    .sort((a, b) => a.id - b.id)
+    .map(publicMessage);
+  // mark read for viewer
+  if (req.user.role === 'admin') {
+    conv.admin_unread = 0;
+    db.messages.forEach((m) => {
+      if (m.conversation_id === id && m.sender_role === 'user' && m.status !== 'read') m.status = 'read';
+    });
+  } else {
+    conv.user_unread = 0;
+    db.messages.forEach((m) => {
+      if (m.conversation_id === id && m.sender_role === 'admin' && m.status !== 'read') m.status = 'read';
+    });
+  }
+  save(db);
+  res.json({
+    conversation: {
+      id: conv.id,
+      name: conv.name,
+      username: conv.username,
+      title: req.user.role === 'admin' ? (conv.name || conv.username) : "Artist's Studio"
+    },
+    messages: msgs
+  });
+});
+
+app.post('/api/v1/conversations/:id/messages', auth, (req, res) => {
+  const body = String(req.body?.body || '').trim();
+  if (!body || body.length < 1) return res.status(400).json({ error: 'Message required' });
+  if (body.length > 4000) return res.status(400).json({ error: 'Message too long' });
+  const db = load();
+  ensureChatSeq(db);
+  const id = +req.params.id;
+  let conv = db.conversations.find((c) => c.id === id);
+  if (!conv && req.user.role !== 'admin') {
+    conv = getOrCreateUserConversation(db, req.user);
+  }
+  if (!conv) return res.status(404).json({ error: 'Conversation not found' });
+  if (req.user.role !== 'admin' && conv.user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const mid = ++db._seq.messages;
+  const msg = {
+    id: mid,
+    conversation_id: conv.id,
+    sender_role: req.user.role === 'admin' ? 'admin' : 'user',
+    sender_id: req.user.id,
+    sender_name: req.user.name,
+    body,
+    status: 'sent',
+    created_at: new Date().toISOString()
+  };
+  db.messages.push(msg);
+  conv.last_message = body.length > 80 ? body.slice(0, 80) + '…' : body;
+  conv.last_at = msg.created_at;
+  if (msg.sender_role === 'user') conv.admin_unread = (conv.admin_unread || 0) + 1;
+  else conv.user_unread = (conv.user_unread || 0) + 1;
+  // sync name/username
+  if (msg.sender_role === 'user') {
+    conv.name = req.user.name;
+    conv.username = req.user.username;
+  }
+  save(db);
+  res.status(201).json({ message: publicMessage(msg) });
+});
+
+// User shortcut: open/create artist chat then post
+app.post('/api/v1/chat/artist', auth, (req, res) => {
+  if (req.user.role === 'admin') {
+    return res.status(400).json({ error: 'Use conversation endpoints as admin' });
+  }
+  const body = String(req.body?.body || '').trim();
+  const db = load();
+  const conv = getOrCreateUserConversation(db, req.user);
+  if (!body) {
+    save(db);
+    return res.json({ conversation_id: conv.id });
+  }
+  if (body.length > 4000) return res.status(400).json({ error: 'Message too long' });
+  const mid = ++db._seq.messages;
+  const msg = {
+    id: mid,
+    conversation_id: conv.id,
+    sender_role: 'user',
+    sender_id: req.user.id,
+    sender_name: req.user.name,
+    body,
+    status: 'sent',
+    created_at: new Date().toISOString()
+  };
+  db.messages.push(msg);
+  conv.last_message = body.length > 80 ? body.slice(0, 80) + '…' : body;
+  conv.last_at = msg.created_at;
+  conv.admin_unread = (conv.admin_unread || 0) + 1;
+  conv.name = req.user.name;
+  conv.username = req.user.username;
+  save(db);
+  res.status(201).json({ conversation_id: conv.id, message: publicMessage(msg) });
+});
+
+
 app.get('/', (_req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'index.html'));
 });
@@ -303,4 +494,4 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(ROOT, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => console.log("Artist's Studio Phase 2 on :" + PORT));
+app.listen(PORT, () => console.log("Artist's Studio on :" + PORT));

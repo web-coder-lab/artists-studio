@@ -235,9 +235,10 @@ async function renderPage() {
         <p class="muted">@${escapeHtml(currentUser.username)}</p></div>
         <div class="dash-grid">
           <article class="tile"><h3>Profile</h3><p>${escapeHtml(currentUser.name)} · @${escapeHtml(currentUser.username)}</p></article>
-          <article class="tile"><h3>Messages</h3><p class="muted">Private studio chat coming soon.</p></article>
-          <article class="tile"><h3>Calls</h3><p class="muted">Voice & video requests coming soon.</p></article>
+          <article class="tile"><h3>Messages</h3><p><a href="/chat.html" style="color:var(--accent)">Open chat with artist</a></p></article>
+          <article class="tile"><h3>Calls</h3><p class="muted">Voice & video — coming soon.</p></article>
         </div>
+        <p style="margin:8px 0 16px"><a class="btn" href="/chat.html">Contact Artist</a></p>
         <button type="button" class="btn btn-ghost" id="btnLogout">Sign out</button>`;
       $('btnLogout')?.addEventListener('click', logout);
     }

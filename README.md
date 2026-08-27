@@ -1,13 +1,22 @@
 # Artist's Studio
 
-## Phase 1 — Auth
-## Phase 2 — Public CMS + WhatsApp prefill
-## Phase 3 — Contact form + Admin Contact inbox
+## Live
+https://artists-studio.onrender.com
 
-- `POST /api/v1/contact`
-- `GET  /api/v1/admin/contacts`
-- `GET  /api/v1/admin/contacts/:id`
-- `PATCH /api/v1/admin/contacts/:id` `{ "status": "read|replied|closed" }`
+## Phases
+1. Auth  
+2. Public multi-page CMS + WhatsApp prefill  
+3. Contact form + admin Contact queue  
+4. **Private chat (WhatsApp-style)** — user ↔ studio  
 
-Admin UI: `/admin.html`  
-Seed: `admin` / `admin123`
+### Chat API
+- `GET  /api/v1/conversations`
+- `GET  /api/v1/conversations/:id/messages`
+- `POST /api/v1/conversations/:id/messages` `{ "body": "..." }`
+- `POST /api/v1/chat/artist` — user open/create thread
+
+### UI
+- User: `/chat.html`
+- Admin: `/admin.html` → Chat Inbox + Contact form tabs
+
+Admin seed: `admin` / `admin123`
