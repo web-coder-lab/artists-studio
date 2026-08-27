@@ -166,8 +166,12 @@ function publicUser(u) {
   };
 }
 
+app.get('/api/v1/ping', (_req, res) => {
+  res.json({ ok: true, t: Date.now() });
+});
+
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'artists-studio', phase: 11 });
+  res.json({ status: 'ok', service: 'artists-studio', phase: 11, build: 'final' });
 });
 
 // ——— Public CMS ———

@@ -1,26 +1,24 @@
-# Artist's Studio — Phase 11 Security
+# Artist's Studio (Final)
 
-**API:** https://artists-studio.onrender.com  
+**https://artists-studio.onrender.com**
 
-## Admin panel (hard path)
-`/Hjwihebdiggeksyevkdibendkxbskjwowhdjfidvbebd`  
+Private atelier website + messaging + reels + remote admin.
 
-`/admin` and `/admin.html` → **404**
+## User
+1. Open site → **Sign in** or **Join**
+2. Browse Home · About · Portfolio · Reels · Services
+3. **✉ Contact** — private chat, symbols for WhatsApp / Instagram / Email, calls
 
-## IP allowlist
-Render env: `ADMIN_ALLOWED_IPS=1.2.3.4,5.6.7.8`  
-Empty = all IPs (dev only). Admin APIs + hard path check allowlist.
+## Admin
+Hard path only:
+`/Hjwihebdiggeksyevkdibendkxbskjwowhdjfidvbebd`
 
-## Site lock
-All public content APIs require JWT. UI shows sign-in wall until identity exists.
+Login: `admin` / `admin123`
 
-## Security
-- Failed login lock (5 / 15min)
-- Sessions + revoke
-- Audit log
-- Security dashboard in admin
-- Security headers + CSP
-- RBAC: superadmin / admin / moderator / user
+## Stack
+Node/Express · JSON store · WebSocket · WebRTC · Jetpack Compose admin (android-admin/)
 
-## Symbols UI
-Nav and Contact channels use symbols (not word labels).
+## DB layout
+GitHub `dstabase7837638362826373` → `Artists studio/Admin` + `Front`
+
+See VERIFY.md for full phase checklist.
