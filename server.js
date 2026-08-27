@@ -1228,7 +1228,12 @@ app.post('/api/v1/chat/artist', auth, (req, res) => {
 // Hard admin path (Phase 11) — not /admin
 app.get(sec.ADMIN_PATH, (req, res) => {
   if (!sec.ipAllowed(req)) {
-    return res.status(403).send('Forbidden');
+    try {
+      const db = load();
+      sec.audit(db, { action: 'admin_ip_blocked', ip: sec.clientIp(req), path: 'panel' });
+      save(db);
+    } catch (_) {}
+    return res.status(403).type('html').send('<!doctype html><meta charset=utf-8><title>Forbidden</title><body style="font-family:system-ui;background:#0a0a0b;color:#f4f1ea;display:grid;place-items:center;min-height:100vh"><p>Access denied</p></body>');
   }
   res.sendFile(path.join(ROOT, 'public', '_panel.html'));
 });
