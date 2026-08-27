@@ -2,20 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <meta name="theme-color" content="#0a0a0b"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <meta name="theme-color" content="#000"/>
   <title>Reels — Artist's Studio</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/css/studio.css"/>
+  <style>
+    body.reels-mode{background:#000;overflow:hidden}
+    .reels-shell{position:fixed;inset:0;top:56px;bottom:0;background:#000}
+    .reels-feed{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch}
+    .reel-slide{
+      height:100%;scroll-snap-align:start;position:relative;display:flex;align-items:center;justify-content:center;
+      background:#0a0a0b;
+    }
+    .reel-slide video,.reel-slide img{width:100%;height:100%;object-fit:contain;background:#000}
+    .reel-actions{
+      position:absolute;right:12px;bottom:100px;display:flex;flex-direction:column;gap:18px;align-items:center;z-index:5;
+    }
+    .reel-actions button,.reel-actions a{
+      width:48px;height:48px;border-radius:50%;border:none;background:rgba(0,0,0,.45);color:#fff;
+      font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;text-decoration:none;
+    }
+    .reel-actions span{font-size:.72rem;color:#ddd;margin-top:-12px}
+    .reel-meta{position:absolute;left:14px;right:70px;bottom:28px;color:#fff;z-index:5;text-shadow:0 1px 4px #000}
+    .reel-meta h2{margin:0 0 6px;font-size:1.05rem;font-weight:600}
+    .empty-reels{color:#9c978c;text-align:center;padding:80px 20px}
+    .comment-sheet{position:fixed;left:0;right:0;bottom:0;max-height:50%;background:#18181b;border-radius:16px 16px 0 0;
+      z-index:40;padding:14px;display:none;flex-direction:column}
+    .comment-sheet.open{display:flex}
+    .comment-list{flex:1;overflow:auto;margin:8px 0}
+    .comment-list p{margin:0 0 10px;font-size:.9rem;color:#f4f1ea}
+    .comment-list .u{color:#c4a574;font-size:.78rem}
+    .comment-form{display:flex;gap:8px}
+    .comment-form input{flex:1;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:#0a0a0b;color:#fff;padding:10px;font:inherit}
+  </style>
 </head>
-<body data-page="reels">
-  <div class="grain" aria-hidden="true"></div>
+<body class="reels-mode" data-page="reels">
   <div id="site-nav"></div>
-  <main id="page-root"></main>
-  <div id="site-foot"></div>
+  <div class="reels-shell">
+    <div class="reels-feed" id="feed"></div>
+  </div>
+  <div class="comment-sheet" id="comments">
+    <strong style="color:#fff">Comments</strong>
+    <div class="comment-list" id="commentList"></div>
+    <form class="comment-form" id="commentForm">
+      <input name="body" placeholder="Add a comment…" required/>
+      <button class="btn btn-sm" type="submit">Post</button>
+    </form>
+    <button type="button" class="btn btn-ghost btn-sm" id="closeComments" style="margin-top:8px">Close</button>
+  </div>
   <div id="site-modals"></div>
   <script src="/js/app.js"></script>
+  <script src="/js/reels-feed.js"></script>
 </body>
 </html>

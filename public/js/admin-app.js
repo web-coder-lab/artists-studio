@@ -482,10 +482,7 @@ async function loadFolioAdmin() {
 $('folioAdd')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  await api('/admin/portfolio', {
-    method: 'POST',
-    body: JSON.stringify(Object.fromEntries(fd.entries()))
-  });
+  await api('/admin/portfolio/upload', { method: 'POST', body: fd });
   e.target.reset();
   loadFolioAdmin();
 });
@@ -509,10 +506,7 @@ async function loadReelsAdmin() {
 $('reelAdd')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  await api('/admin/reels', {
-    method: 'POST',
-    body: JSON.stringify(Object.fromEntries(fd.entries()))
-  });
+  await api('/admin/reels/upload', { method: 'POST', body: fd });
   e.target.reset();
   loadReelsAdmin();
 });

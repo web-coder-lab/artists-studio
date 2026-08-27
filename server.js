@@ -17,6 +17,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(ROOT, 'public')));
+app.use('/media/public', express.static(path.join(__dirname, 'uploads', 'public')));
 
 const uploadPrivateDir = path.join(ROOT, 'uploads', 'private');
 const uploadPublicDir = path.join(ROOT, 'uploads', 'public');
@@ -46,6 +47,18 @@ function fileFilter(_req, file, cb) {
   } else cb(new Error('File type not allowed'));
 }
 
+const publicStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadPublicDir),
+  filename: (_req, file, cb) => {
+    const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+    cb(null, Date.now() + '-' + crypto.randomBytes(4).toString('hex') + '-' + safe);
+  }
+});
+const uploadPublic = multer({
+  storage: publicStorage,
+  limits: { fileSize: 80 * 1024 * 1024, files: 1 },
+  fileFilter
+});
 const uploadChat = multer({
   storage: privateStorage,
   limits: { fileSize: 40 * 1024 * 1024, files: 1 },
@@ -130,7 +143,7 @@ function publicUser(u) {
 }
 
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'artists-studio', phase: 9 });
+  res.json({ status: 'ok', service: 'artists-studio', phase: 10 });
 });
 
 // ——— Public CMS ———
@@ -151,9 +164,20 @@ app.get('/api/v1/portfolio', (_req, res) => {
   res.json({ items: db.portfolio || [] });
 });
 
-app.get('/api/v1/reels', (_req, res) => {
+app.get('/api/v1/reels', authOptional, (req, res) => {
   const db = load();
-  res.json({ items: db.reels || [] });
+  const items = (db.reels || []).map((r) => {
+    const likes = (db.reel_likes || []).filter((x) => x.reel_id === r.id).length;
+    const saves = (db.reel_saves || []).filter((x) => x.reel_id === r.id).length;
+    const comments_count = (db.reel_comments || []).filter((x) => x.reel_id === r.id).length;
+    let liked = false, saved = false;
+    if (req.user) {
+      liked = (db.reel_likes || []).some((x) => x.reel_id === r.id && x.user_id === req.user.id);
+      saved = (db.reel_saves || []).some((x) => x.reel_id === r.id && x.user_id === req.user.id);
+    }
+    return { ...r, likes, saves, comments_count, liked, saved };
+  });
+  res.json({ items });
 });
 
 app.get('/api/v1/socials', (_req, res) => {
@@ -775,6 +799,144 @@ app.get('/api/v1/admin/preview', auth, adminOnly, (req, res) => {
   const db = load();
   const cfg = db.draft || snapshotConfig(db);
   res.json({ preview: cfg, is_draft: !!db.draft });
+});
+
+
+
+// ——— Gallery uploads (no external URL required) Phase 10 ———
+app.post('/api/v1/admin/portfolio/upload', auth, adminOnly, (req, res, next) => {
+  uploadPublic.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
+    next();
+  });
+}, (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Image file required' });
+  const db = load();
+  if (db._seq.portfolio == null) db._seq.portfolio = (db.portfolio || []).length;
+  const id = ++db._seq.portfolio;
+  const item = {
+    id,
+    title: String(req.body?.title || 'Untitled').trim(),
+    category: String(req.body?.category || '').trim(),
+    image: '/media/public/' + req.file.filename,
+    caption: String(req.body?.caption || '').trim(),
+    source: 'gallery'
+  };
+  db.portfolio = db.portfolio || [];
+  db.portfolio.push(item);
+  db.draft = typeof snapshotConfig === 'function' ? snapshotConfig(db) : db.draft;
+  save(db);
+  res.status(201).json({ item });
+});
+
+app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
+  uploadPublic.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
+    next();
+  });
+}, (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Video/image file required' });
+  const db = load();
+  if (db._seq.reels == null) db._seq.reels = (db.reels || []).length;
+  const id = ++db._seq.reels;
+  const isVideo = (req.file.mimetype || '').startsWith('video/');
+  const item = {
+    id,
+    title: String(req.body?.title || 'Reel').trim(),
+    thumb: isVideo ? '' : '/media/public/' + req.file.filename,
+    url: '/media/public/' + req.file.filename,
+    media_type: isVideo ? 'video' : 'image',
+    likes: 0,
+    saves: 0,
+    comments_count: 0,
+    source: 'gallery',
+    created_at: new Date().toISOString()
+  };
+  db.reels = db.reels || [];
+  db.reels.push(item);
+  db.draft = typeof snapshotConfig === 'function' ? snapshotConfig(db) : db.draft;
+  save(db);
+  res.status(201).json({ item });
+});
+
+// Reels engagement
+app.get('/api/v1/reels/:id', authOptional, (req, res) => {
+  const db = load();
+  const item = (db.reels || []).find((r) => r.id === +req.params.id);
+  if (!item) return res.status(404).json({ error: 'Not found' });
+  const comments = (db.reel_comments || []).filter((c) => c.reel_id === item.id);
+  let liked = false, saved = false;
+  if (req.user) {
+    liked = (db.reel_likes || []).some((x) => x.reel_id === item.id && x.user_id === req.user.id);
+    saved = (db.reel_saves || []).some((x) => x.reel_id === item.id && x.user_id === req.user.id);
+  }
+  res.json({
+    item: {
+      ...item,
+      likes: (db.reel_likes || []).filter((x) => x.reel_id === item.id).length,
+      saves: (db.reel_saves || []).filter((x) => x.reel_id === item.id).length,
+      comments_count: comments.length,
+      liked,
+      saved
+    },
+    comments
+  });
+});
+
+app.post('/api/v1/reels/:id/like', auth, (req, res) => {
+  const db = load();
+  const id = +req.params.id;
+  if (!(db.reels || []).some((r) => r.id === id)) return res.status(404).json({ error: 'Not found' });
+  db.reel_likes = db.reel_likes || [];
+  const i = db.reel_likes.findIndex((x) => x.reel_id === id && x.user_id === req.user.id);
+  let liked;
+  if (i >= 0) { db.reel_likes.splice(i, 1); liked = false; }
+  else { db.reel_likes.push({ reel_id: id, user_id: req.user.id, at: new Date().toISOString() }); liked = true; }
+  save(db);
+  const likes = db.reel_likes.filter((x) => x.reel_id === id).length;
+  res.json({ liked, likes });
+});
+
+app.post('/api/v1/reels/:id/save', auth, (req, res) => {
+  const db = load();
+  const id = +req.params.id;
+  if (!(db.reels || []).some((r) => r.id === id)) return res.status(404).json({ error: 'Not found' });
+  db.reel_saves = db.reel_saves || [];
+  const i = db.reel_saves.findIndex((x) => x.reel_id === id && x.user_id === req.user.id);
+  let saved;
+  if (i >= 0) { db.reel_saves.splice(i, 1); saved = false; }
+  else { db.reel_saves.push({ reel_id: id, user_id: req.user.id, at: new Date().toISOString() }); saved = true; }
+  save(db);
+  res.json({ saved, saves: db.reel_saves.filter((x) => x.reel_id === id).length });
+});
+
+app.post('/api/v1/reels/:id/comments', auth, (req, res) => {
+  const body = String(req.body?.body || '').trim();
+  if (!body) return res.status(400).json({ error: 'Comment required' });
+  const db = load();
+  const id = +req.params.id;
+  if (!(db.reels || []).some((r) => r.id === id)) return res.status(404).json({ error: 'Not found' });
+  db.reel_comments = db.reel_comments || [];
+  if (db._seq.reel_comments == null) db._seq.reel_comments = db.reel_comments.length;
+  const c = {
+    id: ++db._seq.reel_comments,
+    reel_id: id,
+    user_id: req.user.id,
+    username: req.user.username,
+    name: req.user.name,
+    body,
+    created_at: new Date().toISOString()
+  };
+  db.reel_comments.push(c);
+  save(db);
+  res.status(201).json({ comment: c });
+});
+
+app.get('/api/v1/reels/:id/comments', (req, res) => {
+  const db = load();
+  const id = +req.params.id;
+  const comments = (db.reel_comments || []).filter((c) => c.reel_id === id);
+  res.json({ comments });
 });
 
 

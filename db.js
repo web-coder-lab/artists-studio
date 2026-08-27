@@ -54,63 +54,8 @@ function defaultDb() {
     draft: null,
     published_at: null,
     versions: [],
-    portfolio: [
-      {
-        id: 1,
-        title: 'Morning light',
-        category: 'Portrait',
-        image:
-          'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&q=80',
-        caption: 'Soft window light, single subject.'
-      },
-      {
-        id: 2,
-        title: 'City grain',
-        category: 'Documentary',
-        image:
-          'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&q=80',
-        caption: 'Street study at dusk.'
-      },
-      {
-        id: 3,
-        title: 'Still table',
-        category: 'Still life',
-        image:
-          'https://images.unsplash.com/photo-1493867387794-411ddf1f9f46?w=800&q=80',
-        caption: 'Objects in quiet composition.'
-      },
-      {
-        id: 4,
-        title: 'Open road',
-        category: 'Travel',
-        image:
-          'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=80',
-        caption: 'Landscape held in one frame.'
-      }
-    ],
-    reels: [
-      {
-        id: 1,
-        title: 'BTS — portrait set',
-        thumb:
-          'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=600&q=80',
-        url: '#'
-      },
-      {
-        id: 2,
-        title: 'Process notes',
-        thumb:
-          'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&q=80',
-        url: '#'
-      },
-      {
-        id: 3,
-        title: 'Light tests',
-        thumb:
-          'https://images.unsplash.com/photo-1471341971476-ae15ff5dd4ea?w=600&q=80',
-        url: '#'
-      }
-    ],
+    portfolio: [],
+    reels: [],
     policies: {
       privacy: {
         title: 'Privacy Policy',
@@ -138,7 +83,7 @@ function defaultDb() {
     messages: [],
     media: [],
     calls: [],
-    _seq: { users: 1, portfolio: 4, reels: 3, contacts: 0, conversations: 0, messages: 0, media: 0, calls: 0, versions: 0 }
+    _seq: { users: 1, portfolio: 0, reels: 0, contacts: 0, conversations: 0, messages: 0, media: 0, calls: 0, versions: 0 }
   };
 }
 
@@ -168,6 +113,18 @@ function load() {
   if (!Array.isArray(raw.versions)) raw.versions = [];
   if (raw._seq.versions == null) raw._seq.versions = raw.versions.length;
   if (raw.draft === undefined) raw.draft = null;
+  if (!raw.cleared_demo_media) {
+    // remove seeded Unsplash demo content once
+    raw.portfolio = [];
+    raw.reels = [];
+    if (raw._seq) { raw._seq.portfolio = 0; raw._seq.reels = 0; }
+    raw.cleared_demo_media = true;
+    changed = true;
+  }
+  if (!Array.isArray(raw.reel_likes)) raw.reel_likes = [];
+  if (!Array.isArray(raw.reel_comments)) raw.reel_comments = [];
+  if (!Array.isArray(raw.reel_saves)) raw.reel_saves = [];
+  if (raw._seq.reel_comments == null) raw._seq.reel_comments = (raw.reel_comments || []).length;
   // Studio public contact (Phase setup)
   raw.socials = Object.assign({}, raw.socials || {}, {
     whatsapp: '923244015101',

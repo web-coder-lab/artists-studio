@@ -1,29 +1,15 @@
-# Artist's Studio
+# Artist's Studio — Phase 10
 
-https://artists-studio.onrender.com
+**API:** https://artists-studio.onrender.com  
+**Admin web (temp):** /admin.html  
+**Admin Android (native Compose):** `android-admin/`  
+**Database repo:** https://github.com/web-coder-lab/dstabase7837638362826373  
+Folder: `Artists studio/data/`
 
-## Phases 1–9 (web)
+## Phase 10
+- Demo portfolio/reels cleared — gallery upload only
+- TikTok-style reels feed (like, save, comment, copy link)
+- Android admin APK project (Gate + Login + Dashboard + lists)
+- No WebView in admin app design
 
-1. Auth  
-2. Public multi-page CMS + WhatsApp prefill  
-3. Contact form  
-4. Private WhatsApp-style chat  
-5. Chat media (private attachments)  
-6. WebSocket + admin notifications  
-7. Voice/Video calls (WebRTC)  
-8. **Admin remote control** (site, socials, portfolio, reels, users)  
-9. **Draft → Publish → Version restore**
-
-### Admin
-https://artists-studio.onrender.com/admin.html  
-`admin` / `admin123`
-
-### Key admin APIs
-- `GET/PUT /api/v1/admin/site`
-- `GET/PUT /api/v1/admin/socials`
-- `POST/PATCH/DELETE /api/v1/admin/portfolio`
-- `POST/DELETE /api/v1/admin/reels`
-- `GET/PATCH /api/v1/admin/users`
-- `POST /api/v1/admin/publish`
-- `GET /api/v1/admin/versions`
-- `POST /api/v1/admin/versions/:id/restore`
+Admin seed still created by API on first boot: `admin` / `admin123`
