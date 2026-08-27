@@ -209,6 +209,10 @@ app.post('/api/v1/auth/logout', auth, (_req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'index.html'));
+});
+
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
   res.sendFile(path.join(ROOT, 'public', 'index.html'));
