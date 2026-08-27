@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="theme-color" content="#0a0a0b"/>
+  <title>Artist's Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/studio.css"/>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <header class="nav">
+    <a class="brand" href="/">Artist's Studio</a>
+    <nav class="nav-actions" id="navActions">
+      <button type="button" class="linkish" data-open="login">Sign in</button>
+      <button type="button" class="btn btn-sm" data-open="register">Join</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Guest hero -->
+    <section class="hero" id="viewGuest">
+      <div class="hero-copy">
+        <p class="eyebrow">Photography · Direction · Craft</p>
+        <h1>A quiet space for work that holds attention.</h1>
+        <p class="lede">Artist's Studio is a private atelier online — portfolio, conversation, and collaboration under one calm roof.</p>
+        <div class="hero-cta">
+          <button type="button" class="btn" data-open="register">Create account</button>
+          <button type="button" class="btn btn-ghost" data-open="login">Sign in</button>
+        </div>
+      </div>
+      <div class="hero-frame" aria-hidden="true">
+        <div class="frame-inner">
+          <span class="frame-label">Phase 1 · Identity</span>
+          <p>Register with username, name & password. Your session is secured with a token — passwords are never stored in plain text.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Logged-in dashboard shell -->
+    <section class="dash hidden" id="viewDash">
+      <div class="dash-head">
+        <p class="eyebrow">Welcome back</p>
+        <h2 id="dashName">—</h2>
+        <p class="muted" id="dashMeta"></p>
+      </div>
+      <div class="dash-grid">
+        <article class="tile">
+          <h3>My Profile</h3>
+          <p>Username & display name from your account.</p>
+          <p class="tile-val" id="tileProfile">—</p>
+        </article>
+        <article class="tile soon">
+          <h3>Contact Artist</h3>
+          <p>Private messages & media — Phase 4.</p>
+        </article>
+        <article class="tile soon">
+          <h3>Messages</h3>
+          <p>Conversation history — upcoming.</p>
+        </article>
+        <article class="tile soon">
+          <h3>Calls</h3>
+          <p>Voice & video requests — Phase 7.</p>
+        </article>
+      </div>
+      <button type="button" class="btn btn-ghost" id="btnLogout">Sign out</button>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>Artist's Studio</span>
+    <span class="muted">Phase 1 · Auth</span>
+  </footer>
+
+  <!-- Auth modal -->
+  <div class="modal hidden" id="authModal" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card">
+      <button type="button" class="modal-x" data-close aria-label="Close">×</button>
+      <h2 id="authTitle">Sign in</h2>
+      <p class="muted" id="authSub">Welcome back to the studio.</p>
+      <form id="authForm" class="form">
+        <label>
+          <span>Username</span>
+          <input name="username" autocomplete="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+" placeholder="e.g. ali_khan"/>
+        </label>
+        <label id="nameField" class="hidden">
+          <span>Name</span>
+          <input name="name" autocomplete="name" minlength="2" maxlength="60" placeholder="Your full name"/>
+        </label>
+        <label>
+          <span>Password</span>
+          <input name="password" type="password" autocomplete="current-password" required minlength="6" placeholder="••••••••"/>
+        </label>
+        <p class="form-error hidden" id="authError"></p>
+        <button type="submit" class="btn btn-block" id="authSubmit">Sign in</button>
+      </form>
+      <p class="switch">
+        <button type="button" class="linkish" id="authSwitch">Need an account? Join</button>
+      </p>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
