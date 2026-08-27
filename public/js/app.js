@@ -308,11 +308,11 @@ async function boot() {
   if (modals) modals.innerHTML = modalsHtml();
   bindGlobal();
   await refreshSession();
-  // Phase 11: site locked until identity
-  if (!token() && page !== 'contact') {
-    const main = document.querySelector('main');
-    if (main && page !== 'contact') {
-      // keep structure; lock overlay
+  if (!token()) {
+    // Contact: guest channels ok; other pages show sign-in wall (login/register always work)
+    if (page === 'contact') {
+      try { await renderPage(); } catch (e) { console.error(e); }
+      return;
     }
     showAuthWall();
     return;
@@ -321,18 +321,23 @@ async function boot() {
 }
 
 function showAuthWall() {
-  const main = document.querySelector('main') || document.body;
-  const wall = document.createElement('div');
-  wall.id = 'authWall';
-  wall.style.cssText = 'position:fixed;inset:0;z-index:60;background:#0a0a0b;display:flex;align-items:center;justify-content:center;padding:24px';
-  wall.innerHTML = '<div style="max-width:380px;text-align:center">' +
-    '<p style="color:#c4a574;letter-spacing:.14em;font-size:.72rem;text-transform:uppercase">Artist\'s Studio</p>' +
-    '<h1 style="font-family:Cormorant Garamond,Georgia,serif;font-weight:500;font-size:2rem;margin:8px 0 12px;color:#f4f1ea">Sign in required</h1>' +
-    '<p style="color:#9c978c;margin:0 0 20px">Every page is locked until your identity is verified.</p>' +
-    '<button type="button" class="btn" data-open="login" style="margin:4px">Sign in</button> ' +
-    '<button type="button" class="btn btn-ghost" data-open="register" style="margin:4px">Join</button></div>';
-  document.body.appendChild(wall);
+  let wall = document.getElementById('authWall');
+  if (!wall) {
+    wall = document.createElement('div');
+    wall.id = 'authWall';
+    wall.style.cssText = 'position:fixed;inset:0;z-index:25;background:#0a0a0b;display:flex;align-items:center;justify-content:center;padding:24px';
+    wall.innerHTML = '<div style="max-width:400px;text-align:center;width:100%">' +
+      '<p style="color:#c4a574;letter-spacing:.14em;font-size:.72rem;text-transform:uppercase">Artist\'s Studio</p>' +
+      '<h1 style="font-family:Cormorant Garamond,Georgia,serif;font-weight:500;font-size:2rem;margin:8px 0 12px;color:#f4f1ea">Welcome</h1>' +
+      '<p style="color:#9c978c;margin:0 0 22px">Sign in or join to open the studio.</p>' +
+      '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
+      '<button type="button" class="btn" data-open="login">Sign in</button>' +
+      '<button type="button" class="btn btn-ghost" data-open="register">Join</button></div></div>';
+    document.body.appendChild(wall);
+  }
+  wall.style.display = 'flex';
   renderNavAuth();
 }
 
 boot();
+

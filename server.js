@@ -204,7 +204,7 @@ app.get('/api/v1/reels', auth, (req, res) => {
   res.json({ items });
 });
 
-app.get('/api/v1/socials', auth, (req, res) => {
+app.get('/api/v1/socials', authOptional, (req, res) => {
   const db = load();
   res.json({ socials: db.socials || {} });
 });
