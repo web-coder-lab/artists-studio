@@ -39,10 +39,10 @@ function defaultDb() {
       ]
     },
     socials: {
-      instagram: 'https://instagram.com/',
+      instagram: 'https://www.instagram.com/aartistsstudios?igsh=YTllNTA0cXZkOXJj',
       youtube: '',
-      whatsapp: '923001234567',
-      email: 'hello@artistsstudio.example'
+      whatsapp: '923244015101',
+      email: 'abdullahshah5919@gmail.com'
     },
     portfolio: [
       {
@@ -146,6 +146,13 @@ function load() {
   }
   if (!raw._seq) raw._seq = base._seq;
   if (raw._seq.contacts == null) raw._seq.contacts = (raw.contacts || []).length;
+  // Studio public contact (Phase setup)
+  raw.socials = Object.assign({}, raw.socials || {}, {
+    whatsapp: '923244015101',
+    email: 'abdullahshah5919@gmail.com',
+    instagram: 'https://www.instagram.com/aartistsstudios?igsh=YTllNTA0cXZkOXJj'
+  });
+  changed = true;
   if (changed) save(raw);
   return raw;
 }
