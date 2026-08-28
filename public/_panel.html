@@ -47,6 +47,19 @@
     .bottom-nav button.active{color:var(--accent)}
     .login-box{max-width:360px}
   </style>
+  <script>
+    (function(){
+      try {
+        var t = localStorage.getItem('as_token');
+        if (!t) document.documentElement.classList.add('needs-auth');
+      } catch(e) { document.documentElement.classList.add('needs-auth'); }
+    })();
+  </script>
+  <style>
+    html.needs-auth body > main,
+    html.needs-auth body > .reels-shell,
+    html.needs-auth .home-grid { visibility: hidden !important; }
+  </style>
 </head>
 <body>
   <div class="grain"></div>

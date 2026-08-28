@@ -16,7 +16,7 @@ async function api(path, opts = {}) {
     try {
       return await window.StudioAPI.api(path, opts);
     } catch (e) {
-      if (e.auth && page !== 'contact') {
+      if (e.auth) {
         showAuthWall();
       }
       throw e;
@@ -432,6 +432,7 @@ function toggleTheme() {
 
 async function boot() {
   initTheme();
+  document.body.classList.add('booting');
   const nav = $('site-nav');
   const foot = $('site-foot');
   const modals = $('site-modals');
@@ -440,34 +441,43 @@ async function boot() {
   if (modals) modals.innerHTML = modalsHtml();
   bindGlobal();
   await refreshSession();
-  if (!token()) {
-    // Contact: guest channels ok; other pages show sign-in wall (login/register always work)
-    if (page === 'contact') {
-      try { await renderPage(); } catch (e) { console.error(e); }
-      return;
-    }
+  const loggedIn = !!(token() || currentUser);
+  if (!loggedIn) {
+    document.body.classList.remove('booting');
+    document.body.classList.add('locked');
     showAuthWall();
+    // hide page content under wall
+    document.querySelectorAll('main, .home-grid, #page-root, #chatRoot, #feed, .reels-shell').forEach((el) => {
+      el.style.visibility = 'hidden';
+    });
     return;
   }
+  document.body.classList.remove('booting', 'locked');
+  document.getElementById('authWall')?.remove();
+  document.querySelectorAll('main, .home-grid, #page-root, #chatRoot, #feed, .reels-shell').forEach((el) => {
+    el.style.visibility = '';
+  });
   try { await renderPage(); } catch (e) { console.error(e); }
 }
 
 function showAuthWall() {
+  document.body.classList.add('locked');
   let wall = document.getElementById('authWall');
   if (!wall) {
     wall = document.createElement('div');
     wall.id = 'authWall';
-    wall.style.cssText = 'position:fixed;inset:0;z-index:25;background:#0a0a0b;display:flex;align-items:center;justify-content:center;padding:24px';
+    wall.style.cssText = 'position:fixed;inset:0;z-index:90;background:#0a0a0b;display:flex;align-items:center;justify-content:center;padding:24px';
     wall.innerHTML = '<div style="max-width:400px;text-align:center;width:100%">' +
       '<p style="color:#c4a574;letter-spacing:.14em;font-size:.72rem;text-transform:uppercase">Artist\'s Studio</p>' +
       '<h1 style="font-family:Cormorant Garamond,Georgia,serif;font-weight:500;font-size:2rem;margin:8px 0 12px;color:#f4f1ea">Welcome</h1>' +
-      '<p style="color:#9c978c;margin:0 0 22px">Sign in or join to open the studio.</p>' +
+      '<p style="color:#9c978c;margin:0 0 22px">Sign in or join first — then the studio opens.</p>' +
       '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
       '<button type="button" class="btn" data-open="login">Sign in</button>' +
       '<button type="button" class="btn btn-ghost" data-open="register">Join</button></div></div>';
     document.body.appendChild(wall);
   }
   wall.style.display = 'flex';
+  // only show brand + theme on nav when locked; no page links needed but keep for branding
   renderNavAuth();
 }
 

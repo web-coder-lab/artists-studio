@@ -1,4 +1,5 @@
 const fs = require('fs');
+const githubDb = require('./github-db');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
@@ -206,6 +207,13 @@ function saveFile(db) {
 }
 
 function load() {
+  if (githubDb.enabled() && ready) {
+    try {
+      return githubDb.load();
+    } catch (e) {
+      console.error('github load', e.message);
+    }
+  }
   if (pgPool && memoryCache) {
     return memoryCache;
   }
@@ -213,9 +221,16 @@ function load() {
 }
 
 function save(db) {
+  if (githubDb.enabled() && ready) {
+    try {
+      githubDb.save(db);
+      return;
+    } catch (e) {
+      console.error('github save', e.message);
+    }
+  }
   memoryCache = db;
   if (pgPool) {
-    // fire-and-forget async write; keep sync API for existing code
     pgPool
       .query(
         `INSERT INTO studio_store (id, data, updated_at) VALUES (1, $1::jsonb, NOW())
@@ -229,6 +244,18 @@ function save(db) {
 }
 
 async function init() {
+  // Phase F: GitHub is primary when configured
+  if (githubDb.enabled()) {
+    try {
+      await githubDb.init(defaultDb());
+      memoryCache = null; // use github load()
+      ready = true;
+      // keep optional PG as mirror later — not required
+      return;
+    } catch (e) {
+      console.error('GitHub DB failed, falling back:', e.message);
+    }
+  }
   try {
     if (DATABASE_URL) {
       await initPg();
@@ -249,4 +276,4 @@ function exportPublicSafe(db) {
   return copy;
 }
 
-module.exports = { load, save, init, defaultDb, exportPublicSafe };
+module.exports = { load, save, init, defaultDb, exportPublicSafe, githubDb };

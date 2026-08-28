@@ -260,7 +260,13 @@ app.get('/api/v1/ping', (_req, res) => {
 });
 
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'artists-studio', phase: 11, build: 'final', db: process.env.DATABASE_URL ? 'postgres' : 'file' });
+  res.json({
+    status: 'ok',
+    service: 'artists-studio',
+    phase: 12,
+    build: 'final',
+    db: process.env.GITHUB_DB_TOKEN ? 'github' : (process.env.DATABASE_URL ? 'postgres' : 'file')
+  });
 });
 
 // ——— Public CMS ———
@@ -529,12 +535,17 @@ app.get('/api/v1/admin/backup', auth, adminOnly, (req, res) => {
 });
 
 app.get('/api/v1/admin/db-status', auth, adminOnly, (_req, res) => {
+  const github = !!(process.env.GITHUB_DB_TOKEN || process.env.GITHUB_TOKEN);
+  const pg = !!process.env.DATABASE_URL;
   res.json({
-    persistent: !!(process.env.DATABASE_URL),
-    driver: process.env.DATABASE_URL ? 'postgres' : 'file',
-    note: process.env.DATABASE_URL
-      ? 'Data stored in PostgreSQL'
-      : 'File store — set DATABASE_URL for persistence'
+    persistent: github || pg,
+    driver: github ? 'github' : pg ? 'postgres' : 'file',
+    repo: process.env.GITHUB_DB_REPO || 'web-coder-lab/dstabase7837638362826373',
+    note: github
+      ? 'Primary store: GitHub repo (Artists studio / Admin + Front tables)'
+      : pg
+        ? 'PostgreSQL'
+        : 'File store'
   });
 });
 

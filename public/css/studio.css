@@ -136,3 +136,17 @@ html[data-theme="light"] .modal-card{background:#fff;border-color:var(--line)}
 }
 .rate-bars{display:flex;align-items:flex-end;gap:4px;height:80px;margin:12px 0}
 .rate-bars span{flex:1;background:var(--accent);opacity:.75;border-radius:4px 4px 0 0;min-height:2px}
+
+/* Auth lock — no content flash before sign-in */
+body.locked main,
+body.locked .home-grid,
+body.locked #page-root,
+body.locked .reels-shell,
+body.booting main {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+body.locked .nav-links {
+  visibility: hidden;
+  pointer-events: none;
+}
