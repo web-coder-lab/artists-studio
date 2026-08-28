@@ -1,34 +1,21 @@
-# Studio Admin — Android (Phase D)
+# Studio Admin — Android (API-only)
 
-**Kotlin · Jetpack Compose · no WebView**
+**Kotlin · Jetpack Compose · OkHttp · no WebView**
 
-## Features
-- **Gate** — “Server is starting…” until `/api/v1/health` OK
-- **Login** — JWT admin / superadmin / moderator only
-- **Home** — dashboard stats
-- **Chat** — conversation list + thread reply
-- **Contact inbox** — form submissions list
-- **Keep-alive** — WorkManager ~15 min pings `ping` + `health` (helps free-tier wake)
-- **BootReceiver** — reschedule keep-alive after reboot
-- **FCM** — optional; add Firebase `google-services.json` later for push
+Browser admin removed from the website. This app is the only admin UI.
+
+## Phases
+| Phase | Status |
+|-------|--------|
+| 1–2 Domain: admin UI off + REST API | Server |
+| 3 App: gate, login, dashboard | Scaffold |
+| 4 App: chat reply, contacts, notifications | Partial |
+| 5 App: CMS + security + publish | Next |
 
 ## API
-`https://artists-studio.onrender.com/api/v1/`
+See root `ADMIN_API.md`  
+Base: `https://artists-studio.onrender.com/api/v1/`
 
-## Build APK
-### Android Studio
-Open `android-admin/` → Run / Build APK.
-
-### CLI
-```bash
-cd android-admin
-gradle wrapper --gradle-version 8.2.1
-./gradlew :app:assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
-```
-
-### GitHub Actions
-Workflow: `.github/workflows/android-admin.yml` → artifact **studio-admin-apk**.
-
-## Login
-Same admin credentials as web panel (`admin` + your password).
+## Build
+Android Studio → open `android-admin/` → Run  
+or GitHub Action **Studio Admin APK**

@@ -264,6 +264,7 @@ app.get('/api/v1/health', (_req, res) => {
     status: 'ok',
     service: 'artists-studio',
     phase: 12,
+    admin_ui: false,
     build: 'final',
     db: process.env.GITHUB_DB_TOKEN ? 'github' : (process.env.DATABASE_URL ? 'postgres' : 'file')
   });
@@ -799,6 +800,82 @@ app.post('/api/v1/admin/notifications/read', auth, adminOnly, (req, res) => {
   (db.admin_notifications || []).forEach((n) => { n.read = true; });
   save(db);
   res.json({ ok: true });
+});
+
+
+// ——— Admin read lists (API-only control plane) ———
+app.get('/api/v1/admin/portfolio', auth, adminOnly, (req, res) => {
+  const db = load();
+  res.json({ items: db.portfolio || [] });
+});
+
+app.get('/api/v1/admin/reels', auth, adminOnly, (req, res) => {
+  const db = load();
+  res.json({ items: db.reels || [] });
+});
+
+app.patch('/api/v1/admin/reels/:id', auth, adminOnly, (req, res) => {
+  const db = load();
+  const item = (db.reels || []).find((x) => x.id === +req.params.id);
+  if (!item) return res.status(404).json({ error: 'Not found' });
+  if (req.body?.title != null) item.title = String(req.body.title).trim();
+  if (req.body?.caption != null) item.caption = String(req.body.caption).trim();
+  save(db);
+  res.json({ item });
+});
+
+app.get('/api/v1/admin/policies', auth, adminOnly, (req, res) => {
+  const db = load();
+  res.json({ policies: db.policies || {} });
+});
+
+app.get('/api/v1/admin/theme', auth, adminOnly, (req, res) => {
+  const db = load();
+  res.json({ theme: db.theme || {} });
+});
+
+app.put('/api/v1/admin/theme', auth, adminOnly, (req, res) => {
+  const db = load();
+  db.theme = { ...(db.theme || {}), ...(req.body?.theme || req.body || {}) };
+  save(db);
+  res.json({ theme: db.theme });
+});
+
+app.get('/api/v1/admin/pages', auth, adminOnly, (req, res) => {
+  const db = load();
+  res.json({ pages: db.pages || {} });
+});
+
+app.put('/api/v1/admin/pages', auth, adminOnly, (req, res) => {
+  const db = load();
+  if (req.body?.pages && typeof req.body.pages === 'object') {
+    db.pages = { ...db.pages, ...req.body.pages };
+    save(db);
+  }
+  res.json({ pages: db.pages });
+});
+
+/** Catalog of admin API routes for the Android client */
+app.get('/api/v1/admin/catalog', auth, adminOnly, (_req, res) => {
+  res.json({
+    version: 1,
+    mode: 'api_only',
+    note: 'Browser admin UI removed — use Studio Admin Android app',
+    groups: {
+      auth: ['POST /auth/login', 'GET /auth/me', 'POST /auth/logout', 'POST /auth/password', 'PATCH /auth/profile'],
+      dashboard: ['GET /admin/dashboard', 'GET /admin/db-status', 'GET /admin/notifications'],
+      chat: ['GET /conversations', 'GET /conversations/:id/messages', 'POST /conversations/:id/messages'],
+      contacts: ['GET /admin/contacts', 'GET /admin/contacts/:id', 'PATCH /admin/contacts/:id'],
+      cms: ['GET|PUT /admin/site', 'GET|PUT /admin/socials', 'GET|PUT /admin/theme', 'GET|PUT /admin/pages', 'GET|PUT /admin/policies'],
+      portfolio: ['GET|POST /admin/portfolio', 'PATCH|DELETE /admin/portfolio/:id', 'POST /admin/portfolio/upload'],
+      reels: ['GET|POST /admin/reels', 'PATCH|DELETE /admin/reels/:id', 'POST /admin/reels/upload'],
+      users: ['GET /admin/users', 'PATCH /admin/users/:id'],
+      publish: ['POST /admin/publish', 'GET /admin/versions', 'POST /admin/versions/:id/restore', 'GET /admin/preview'],
+      security: ['GET /admin/security/dashboard', 'GET /admin/security/rate-chart', 'GET /admin/security/audit', 'POST /admin/security/sessions/:id/revoke'],
+      backup: ['GET /admin/backup'],
+      calls: ['POST /calls/:id/accept', 'POST /calls/:id/reject', 'POST /calls/:id/end']
+    }
+  });
 });
 
 app.get('/api/v1/admin/dashboard', auth, adminOnly, (req, res) => {
@@ -1420,18 +1497,11 @@ app.post('/api/v1/chat/artist', auth, (req, res) => {
 
 
 // Hard admin path (Phase 11) — not /admin
-app.get(sec.ADMIN_PATH, (req, res) => {
-  if (!sec.ipAllowed(req)) {
-    try {
-      const db = load();
-      sec.audit(db, { action: 'admin_ip_blocked', ip: sec.clientIp(req), path: 'panel' });
-      save(db);
-    } catch (_) {}
-    return res.status(403).type('html').send('<!doctype html><meta charset=utf-8><title>Forbidden</title><body style="font-family:system-ui;background:#0a0a0b;color:#f4f1ea;display:grid;place-items:center;min-height:100vh"><p>Access denied</p></body>');
-  }
-  res.sendFile(path.join(ROOT, 'public', '_panel.html'));
+// Phase 1–2: NO browser admin UI on domain — API only
+app.get(sec.ADMIN_PATH, (_req, res) => {
+  res.status(404).sendFile(path.join(ROOT, 'public', '404.html'));
 });
-app.get(['/admin', '/admin.html', '/admin/'], (_req, res) => {
+app.get(['/admin', '/admin.html', '/admin/', '/_panel.html'], (_req, res) => {
   res.status(404).sendFile(path.join(ROOT, 'public', '404.html'));
 });
 
