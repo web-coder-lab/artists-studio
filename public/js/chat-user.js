@@ -141,7 +141,16 @@
     socket.onmessage = (ev) => {
       let data;
       try { data = JSON.parse(ev.data); } catch { return; }
-      if (data.type === 'new_message' && data.conversation_id === convId) loadMessages().catch(() => {});
+      if (data.type === 'new_message' && data.conversation_id === convId) {
+        loadMessages().catch(() => {});
+        try {
+          const body = (data.message && data.message.body) || (data.notify && data.notify.text) || 'New message';
+          const fromAdmin = data.message && data.message.sender_role === 'admin';
+          if (fromAdmin && 'Notification' in window && Notification.permission === 'granted' && document.hidden) {
+            new Notification("Artist's Studio", { body: String(body).slice(0, 120), icon: '/favicon.svg' });
+          }
+        } catch (_) {}
+      }
       if (data.type === 'typing' && data.conversation_id === convId) {
         const tip = document.getElementById('typingHint');
         if (!tip) return;

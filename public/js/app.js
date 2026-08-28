@@ -398,6 +398,11 @@ function bindGlobal() {
       if (!data.token) throw new Error('No session returned');
       setToken(data.token);
       if (window.StudioAPI) window.StudioAPI.setToken(data.token);
+      try {
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      } catch (_) {}
       currentUser = data.user;
       closeModal();
       document.getElementById('authWall')?.remove();
@@ -432,6 +437,12 @@ function toggleTheme() {
 
 async function boot() {
   initTheme();
+  try {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  } catch (_) {}
+
   document.body.classList.add('booting');
   const nav = $('site-nav');
   const foot = $('site-foot');
@@ -477,8 +488,9 @@ function showAuthWall() {
     document.body.appendChild(wall);
   }
   wall.style.display = 'flex';
-  // only show brand + theme on nav when locked; no page links needed but keep for branding
   renderNavAuth();
+  // Always open Sign in first (Join available in modal switch)
+  setTimeout(() => { try { openModal('login'); } catch (_) {} }, 80);
 }
 
 boot();

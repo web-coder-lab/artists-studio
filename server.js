@@ -236,6 +236,73 @@ function requireStaff(req, res, next) {
   next();
 }
 
+
+/** Sync superadmin from GitHub: Admin/Password login/credentials.json */
+function syncAdminCredentials(db) {
+  const cred = db._admin_credentials;
+  if (!cred || !cred.username || !cred.password) return;
+  const uname = String(cred.username).trim();
+  const plain = String(cred.password);
+  if (!uname || !plain) return;
+  let admin = (db.users || []).find((u) => u.role === 'superadmin' || u.username.toLowerCase() === uname.toLowerCase());
+  if (!admin) {
+    if (db._seq.users == null) db._seq.users = (db.users || []).length;
+    admin = {
+      id: ++db._seq.users,
+      username: uname,
+      name: 'Studio Admin',
+      password_hash: bcrypt.hashSync(plain, 10),
+      role: 'superadmin',
+      status: 'active',
+      must_change_password: false,
+      created_at: new Date().toISOString(),
+      last_login: null
+    };
+    db.users = db.users || [];
+    db.users.push(admin);
+  } else {
+    // update username + rehash if plain password changed (always rehash from file)
+    admin.username = uname;
+    admin.role = 'superadmin';
+    admin.status = 'active';
+    try {
+      if (!bcrypt.compareSync(plain, admin.password_hash)) {
+        admin.password_hash = bcrypt.hashSync(plain, 10);
+      }
+    } catch (_) {
+      admin.password_hash = bcrypt.hashSync(plain, 10);
+    }
+  }
+}
+
+function persistUserAccount(db, user) {
+  try {
+    if (db && typeof require('./github-db').writeUserAccount === 'function') {
+      const gh = require('./github-db');
+      const conv = (db.conversations || []).find((c) => c.user_id === user.id);
+      let messages = [];
+      if (conv) {
+        messages = (db.messages || []).filter((m) => m.conversation_id === conv.id);
+      }
+      gh.writeUserAccount(user, {
+        conversation_id: conv ? conv.id : null,
+        messages: messages.map((m) => ({
+          id: m.id,
+          sender_role: m.sender_role,
+          body: m.body,
+          status: m.status,
+          created_at: m.created_at
+        }))
+      }).catch((e) => console.error('user account write', e.message));
+      if (conv) {
+        gh.writeUserChat(user.username, conv.id, messages).catch(() => {});
+      }
+    }
+  } catch (e) {
+    console.error('persistUserAccount', e.message);
+  }
+}
+
 function isAdminRole(role) {
   return role === 'admin' || role === 'superadmin';
 }
@@ -452,6 +519,7 @@ app.post('/api/v1/auth/register', authLimiter, (req, res) => {
   };
   db.users.push(user);
   save(db);
+  try { persistUserAccount(db, user); } catch (_) {}
 
   const token = signToken(user);
   setAuthCookie(res, token);
@@ -462,6 +530,7 @@ app.post('/api/v1/auth/login', authLimiter, (req, res) => {
   const username = String(req.body?.username || '').trim();
   const password = String(req.body?.password || '');
   const db = load();
+  try { syncAdminCredentials(db); } catch (e) { console.error('syncAdmin', e.message); }
   const user = db.users.find((u) => u.username.toLowerCase() === username.toLowerCase());
   const ip = sec.clientIp(req);
   if (sec.isLocked(db, username)) {
@@ -481,6 +550,7 @@ app.post('/api/v1/auth/login', authLimiter, (req, res) => {
   const sid = sec.createSession(db, user, ip, req.headers['user-agent']);
   sec.audit(db, { action: 'login_ok', username: user.username, role: user.role, ip });
   save(db);
+  try { persistUserAccount(db, user); } catch (_) {}
   const token = signToken(user);
   setAuthCookie(res, token);
   res.json({ token, session_id: sid, user: publicUser(user) });
@@ -1553,6 +1623,13 @@ function broadcastUser(userId, payload) {
 }
 
 function notifyNewMessage(conv, msg) {
+  // persist per-user chat file
+  try {
+    const db = load();
+    const u = (db.users || []).find((x) => x.id === conv.user_id);
+    if (u) persistUserAccount(db, u);
+  } catch (_) {}
+
   const preview = msg.body || (msg.attachment ? ('File: ' + (msg.attachment.name || 'attachment')) : '');
   const payload = {
     type: 'new_message',
@@ -1685,6 +1762,14 @@ app.use((err, _req, res, _next) => {
 
 initDb()
   .then(() => {
+    try {
+      const d = load();
+      syncAdminCredentials(d);
+      save(d);
+      console.log('Admin credentials synced from GitHub Password login');
+    } catch (e) {
+      console.error('admin cred sync', e.message);
+    }
     server.listen(PORT, () => console.log("Artist's Studio on :" + PORT + " (HTTP + WS /ws)"));
   })
   .catch((e) => {

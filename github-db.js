@@ -12,6 +12,7 @@ const ROOT = 'Artists studio';
 /** path relative to repo root → key in in-memory db */
 const TABLES = {
   'Admin/users/users.json': 'users',
+  'Admin/Password login/credentials.json': '_admin_credentials',
   'Admin/sessions/sessions.json': '_sessions',
   'Admin/audit/audit.json': '_audit',
   'Admin/security/settings.json': '_security_settings',
@@ -210,6 +211,8 @@ function assembleFromFiles(files) {
     } else if (key === '_policy_terms') {
       db.policies = db.policies || {};
       db.policies.terms = raw;
+    } else if (key === '_admin_credentials') {
+      db._admin_credentials = raw || null;
     } else if (key === '_seq') {
       db._seq = { ...db._seq, ...(raw || {}) };
     } else if (key === '_published_at') {
@@ -226,6 +229,7 @@ function assembleFromFiles(files) {
 function disassemble(db) {
   const out = {};
   out['Admin/users/users.json'] = { items: db.users || [] };
+  out['Admin/Password login/credentials.json'] = db._admin_credentials || { username: 'admin', password: '', note: 'Set admin password' };
   out['Admin/sessions/sessions.json'] = { items: (db.security && db.security.sessions) || [] };
   out['Admin/audit/audit.json'] = { items: (db.security && db.security.audit) || [] };
   out['Admin/security/settings.json'] = (db.security && db.security.settings) || {
@@ -320,6 +324,38 @@ async function flush() {
   if (dirty && cache) await saveAll(cache, 'db: flush');
 }
 
+
+async function writeUserAccount(user, chatExtra) {
+  if (!enabled()) return;
+  const uname = String(user.username || 'user').replace(/[^a-zA-Z0-9_\-]/g, '_');
+  const rel = `Admin/users/accounts/${uname}.json`;
+  const payload = {
+    id: user.id,
+    username: user.username,
+    name: user.name,
+    password_hash: user.password_hash,
+    role: user.role,
+    status: user.status,
+    must_change_password: !!user.must_change_password,
+    created_at: user.created_at,
+    last_login: user.last_login || null,
+    chat: chatExtra || { conversation_id: null, messages: [] }
+  };
+  await writeFile(rel, payload, `db: user account ${uname}`);
+}
+
+async function writeUserChat(username, conversationId, messages) {
+  if (!enabled()) return;
+  const uname = String(username || 'user').replace(/[^a-zA-Z0-9_\-]/g, '_');
+  const rel = `Admin/users/chats/${uname}.json`;
+  await writeFile(rel, {
+    username,
+    conversation_id: conversationId,
+    messages: messages || [],
+    updated_at: new Date().toISOString()
+  }, `db: chat ${uname}`);
+}
+
 module.exports = {
   enabled,
   init,
@@ -328,6 +364,8 @@ module.exports = {
   flush,
   loadAll,
   saveAll,
+  writeUserAccount,
+  writeUserChat,
   REPO,
   TABLES
 };
