@@ -17,71 +17,67 @@ class ApiClient(private val session: SessionStore) {
         .readTimeout(45, TimeUnit.SECONDS)
         .writeTimeout(45, TimeUnit.SECONDS)
         .build()
-
     private val base = BuildConfig.API_BASE
     private val json = "application/json; charset=utf-8".toMediaType()
 
-    suspend fun health(): JSONObject = get("health", auth = false)
-    suspend fun login(username: String, password: String): JSONObject {
-        val body = JSONObject().put("username", username).put("password", password)
-        return post("auth/login", body, auth = false)
+    suspend fun health(): JSONObject = get("health", false)
+    suspend fun login(u: String, p: String) =
+        post("auth/login", JSONObject().put("username", u).put("password", p), false)
+    suspend fun me() = get("auth/me")
+    suspend fun logout() = post("auth/logout", JSONObject())
+    suspend fun dashboard() = get("admin/dashboard")
+    suspend fun dbStatus() = get("admin/db-status")
+    suspend fun notifications(): JSONArray = get("admin/notifications").optJSONArray("items") ?: JSONArray()
+    suspend fun markNotificationsRead() = post("admin/notifications/read", JSONObject())
+    suspend fun conversations(): JSONArray = get("conversations").optJSONArray("items") ?: JSONArray()
+    suspend fun messages(id: Int) = get("conversations/$id/messages")
+    suspend fun sendMessage(id: Int, text: String) =
+        post("conversations/$id/messages", JSONObject().put("body", text))
+    suspend fun contacts(): JSONArray = get("admin/contacts").optJSONArray("items") ?: JSONArray()
+    suspend fun patchContact(id: Int, status: String) =
+        patch("admin/contacts/$id", JSONObject().put("status", status))
+
+    suspend fun getSite() = get("admin/site")
+    suspend fun putSite(site: JSONObject) = put("admin/site", JSONObject().put("site", site))
+    suspend fun getSocials() = get("admin/socials")
+    suspend fun putSocials(s: JSONObject) = put("admin/socials", JSONObject().put("socials", s))
+    suspend fun adminPortfolio(): JSONArray = get("admin/portfolio").optJSONArray("items") ?: JSONArray()
+    suspend fun deletePortfolio(id: Int) = delete("admin/portfolio/$id")
+    suspend fun adminReels(): JSONArray = get("admin/reels").optJSONArray("items") ?: JSONArray()
+    suspend fun deleteReel(id: Int) = delete("admin/reels/$id")
+    suspend fun publish() = post("admin/publish", JSONObject())
+    suspend fun versions(): JSONArray = get("admin/versions").optJSONArray("items") ?: JSONArray()
+    suspend fun restoreVersion(id: Int) = post("admin/versions/$id/restore", JSONObject())
+    suspend fun securityDashboard() = get("admin/security/dashboard")
+    suspend fun securityAudit(): JSONArray = get("admin/security/audit").optJSONArray("items") ?: JSONArray()
+    suspend fun revokeAllSessions() = post("admin/security/sessions/revoke-all", JSONObject())
+
+    private suspend fun tok() = session.token() ?: throw Exception("Not signed in")
+    private suspend fun get(path: String, auth: Boolean = true) = withContext(Dispatchers.IO) {
+        val b = Request.Builder().url(base + path)
+        if (auth) b.header("Authorization", "Bearer ${tok()}")
+        parse(client.newCall(b.get().build()).execute())
     }
-    suspend fun me(): JSONObject = get("auth/me")
-    suspend fun logout(): JSONObject = post("auth/logout", JSONObject())
-
-    suspend fun dashboard(): JSONObject = get("admin/dashboard")
-    suspend fun dbStatus(): JSONObject = get("admin/db-status")
-
-    suspend fun notifications(): JSONArray {
-        val o = get("admin/notifications")
-        return o.optJSONArray("items") ?: JSONArray()
+    private suspend fun post(path: String, body: JSONObject, auth: Boolean = true) = withContext(Dispatchers.IO) {
+        val b = Request.Builder().url(base + path).post(body.toString().toRequestBody(json))
+        if (auth) b.header("Authorization", "Bearer ${tok()}")
+        parse(client.newCall(b.build()).execute())
     }
-    suspend fun markNotificationsRead(): JSONObject =
-        post("admin/notifications/read", JSONObject())
-
-    suspend fun conversations(): JSONArray {
-        val o = get("conversations")
-        return o.optJSONArray("items") ?: JSONArray()
+    private suspend fun put(path: String, body: JSONObject) = withContext(Dispatchers.IO) {
+        val b = Request.Builder().url(base + path).put(body.toString().toRequestBody(json))
+            .header("Authorization", "Bearer ${tok()}")
+        parse(client.newCall(b.build()).execute())
     }
-    suspend fun messages(conversationId: Int): JSONObject =
-        get("conversations/$conversationId/messages")
-    suspend fun sendMessage(conversationId: Int, text: String): JSONObject {
-        val body = JSONObject().put("body", text)
-        return post("conversations/$conversationId/messages", body)
+    private suspend fun patch(path: String, body: JSONObject) = withContext(Dispatchers.IO) {
+        val b = Request.Builder().url(base + path).patch(body.toString().toRequestBody(json))
+            .header("Authorization", "Bearer ${tok()}")
+        parse(client.newCall(b.build()).execute())
     }
-
-    suspend fun contacts(): JSONArray {
-        val o = get("admin/contacts")
-        return o.optJSONArray("items") ?: JSONArray()
+    private suspend fun delete(path: String) = withContext(Dispatchers.IO) {
+        val b = Request.Builder().url(base + path).delete()
+            .header("Authorization", "Bearer ${tok()}")
+        parse(client.newCall(b.build()).execute())
     }
-    suspend fun patchContact(id: Int, status: String): JSONObject {
-        val body = JSONObject().put("status", status)
-        return patch("admin/contacts/$id", body)
-    }
-
-    private suspend fun get(path: String, auth: Boolean = true): JSONObject =
-        withContext(Dispatchers.IO) {
-            val b = Request.Builder().url(base + path)
-            if (auth) b.header("Authorization", "Bearer ${session.token() ?: throw Exception("Not signed in")}")
-            parse(client.newCall(b.get().build()).execute())
-        }
-
-    private suspend fun post(path: String, body: JSONObject, auth: Boolean = true): JSONObject =
-        withContext(Dispatchers.IO) {
-            val b = Request.Builder().url(base + path).post(body.toString().toRequestBody(json))
-            if (auth) b.header("Authorization", "Bearer ${session.token() ?: throw Exception("Not signed in")}")
-            parse(client.newCall(b.build()).execute())
-        }
-
-    private suspend fun patch(path: String, body: JSONObject): JSONObject =
-        withContext(Dispatchers.IO) {
-            val b = Request.Builder()
-                .url(base + path)
-                .patch(body.toString().toRequestBody(json))
-                .header("Authorization", "Bearer ${session.token() ?: throw Exception("Not signed in")}")
-            parse(client.newCall(b.build()).execute())
-        }
-
     private fun parse(res: okhttp3.Response): JSONObject {
         val text = res.body?.string().orEmpty()
         if (res.code !in 200..299) {

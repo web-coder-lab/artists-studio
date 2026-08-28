@@ -1,21 +1,19 @@
-# Studio Admin — Android
+# Studio Admin — Android (Phases 1–5 complete)
 
 **Kotlin · Jetpack Compose · OkHttp · no WebView**
 
-## Phases
 | Phase | Scope | Status |
 |-------|--------|--------|
 | 1–2 | Domain admin UI off + REST | Done |
 | 3 | Gate · Login · Dashboard | Done |
-| **4** | **Chat · Contacts · Notifications** | **This build** |
-| 5 | CMS · security · publish | Next |
+| 4 | Chat · Contacts · Notifications | Done |
+| **5** | **CMS · Security · Publish** | **Done** |
 
 ## Tabs
-- **Home** — dashboard + DB status
-- **Chat** — conversation list → thread → reply (`POST …/messages`)
-- **Inbox** — contact form + mark read
-- **Alerts** — admin notifications + mark all read
+Home · Chat · Inbox · Alerts · **More → CMS / Security**
 
 ## Build
-Android Studio → `android-admin` → Run  
+Android Studio → open `android-admin` → Run  
 API: `https://artists-studio.onrender.com/api/v1/`
+
+Version `1.4.0-phase5`
