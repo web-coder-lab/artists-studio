@@ -1,15 +1,13 @@
-name: Build Admin APK
+name: Studio Admin APK
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'android-admin/**'
-  workflow_dispatch:
+      - '.github/workflows/android-admin.yml'
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: android-admin
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -19,14 +17,18 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
       - name: Gradle wrapper
+        working-directory: android-admin
         run: |
-          gradle wrapper --gradle-version 8.2 || true
-          chmod +x gradlew || true
-      - name: Assemble
-        run: |
-          if [ -f ./gradlew ]; then ./gradlew :app:assembleDebug --no-daemon; else echo "Add gradle wrapper locally"; fi
+          if [ ! -f gradlew ]; then
+            curl -sL https://services.gradle.org/distributions/gradle-8.2.1-bin.zip -o /tmp/gradle.zip
+            unzip -q /tmp/gradle.zip -d /tmp
+            /tmp/gradle-8.2.1/bin/gradle wrapper --gradle-version 8.2.1
+          fi
+          chmod +x gradlew
+      - name: Build debug APK
+        working-directory: android-admin
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
-        if: success()
         with:
-          name: studio-admin-debug
+          name: studio-admin-apk
           path: android-admin/app/build/outputs/apk/debug/*.apk

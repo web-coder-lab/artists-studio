@@ -9,9 +9,19 @@ android {
         applicationId = "com.artistsstudio.admin"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0-phaseD"
         buildConfigField("String", "API_BASE", "\"https://artists-studio.onrender.com/api/v1/\"")
+        buildConfigField("String", "SITE_BASE", "\"https://artists-studio.onrender.com\"")
+    }
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
     }
     buildFeatures {
         compose = true
@@ -36,6 +46,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("androidx.datastore:datastore-preferences:1.0.0")
