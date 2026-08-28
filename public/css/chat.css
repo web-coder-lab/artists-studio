@@ -214,3 +214,11 @@
   box-shadow: 0 12px 40px rgba(0,0,0,.4);
 }
 .net-banner.hidden { display: none !important; }
+
+.typing-hint {
+  margin: 0; padding: 4px 16px; font-size: .78rem; color: var(--chat-muted);
+  min-height: 1.2em;
+}
+.typing-hint.hidden { visibility: hidden; }
+.bubble .ticks { letter-spacing: -1px; opacity: .85; }
+.bubble.mine .ticks { color: var(--chat-accent); }

@@ -204,13 +204,47 @@ async function renderPage() {
       <p class="prose">${escapeHtml(site.about || '')}</p></div>`;
   } else if (page === 'portfolio') {
     const folio = await api('/portfolio');
+    const items = folio.items || [];
     root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:8px"><p class="eyebrow">Selected work</p><h1>Portfolio</h1></div>
-      <div class="folio-grid">${(folio.items || []).map((it) => `
-        <article class="folio-card">
-          <img src="${escapeHtml(it.image)}" alt="${escapeHtml(it.title)}" loading="lazy"/>
-          <div class="folio-meta"><h3>${escapeHtml(it.title)}</h3>
+      ${items.length ? '' : '<p class="muted" style="text-align:center;padding:40px">No work published yet.</p>'}
+      <div class="folio-grid">${items.map((it, i) => `
+        <article class="folio-card" data-lightbox="${i}" role="button" tabindex="0">
+          <img src="${escapeHtml(it.image || it.url || '')}" alt="${escapeHtml(it.title || '')}" loading="lazy"/>
+          <div class="folio-meta"><h3>${escapeHtml(it.title || '')}</h3>
           <p>${escapeHtml(it.category || '')}${it.caption ? ' · ' + escapeHtml(it.caption) : ''}</p></div>
-        </article>`).join('')}</div>`;
+        </article>`).join('')}</div>
+      <div class="lightbox hidden" id="lightbox" aria-modal="true" role="dialog">
+        <button type="button" class="lightbox-x" id="lbClose" aria-label="Close">×</button>
+        <button type="button" class="lightbox-nav prev" id="lbPrev" aria-label="Previous">‹</button>
+        <img id="lbImg" alt=""/>
+        <button type="button" class="lightbox-nav next" id="lbNext" aria-label="Next">›</button>
+        <p class="lightbox-cap" id="lbCap"></p>
+      </div>`;
+    window.__folio = items;
+    let li = 0;
+    const lb = $('lightbox');
+    const show = (i) => {
+      if (!items.length) return;
+      li = (i + items.length) % items.length;
+      const it = items[li];
+      $('lbImg').src = it.image || it.url || '';
+      $('lbCap').textContent = [it.title, it.caption].filter(Boolean).join(' — ');
+      lb.classList.remove('hidden');
+    };
+    root.querySelectorAll('[data-lightbox]').forEach((el) => {
+      el.addEventListener('click', () => show(+el.dataset.lightbox));
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') show(+el.dataset.lightbox); });
+    });
+    $('lbClose')?.addEventListener('click', () => lb.classList.add('hidden'));
+    $('lbPrev')?.addEventListener('click', () => show(li - 1));
+    $('lbNext')?.addEventListener('click', () => show(li + 1));
+    lb?.addEventListener('click', (e) => { if (e.target === lb) lb.classList.add('hidden'); });
+    document.addEventListener('keydown', function lbKeys(e) {
+      if (lb.classList.contains('hidden')) return;
+      if (e.key === 'Escape') lb.classList.add('hidden');
+      if (e.key === 'ArrowLeft') show(li - 1);
+      if (e.key === 'ArrowRight') show(li + 1);
+    });
   } else if (page === 'reels') {
     const reels = await api('/reels');
     root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:8px"><p class="eyebrow">Motion</p><h1>Reels</h1></div>
@@ -248,6 +282,11 @@ async function renderPage() {
         <p style="margin:8px 0 16px"><a class="btn" href="/contact.html">Contact Artist</a></p>
         <button type="button" class="btn btn-ghost" id="btnLogout">Sign out</button>
         <hr style="border:none;border-top:1px solid var(--line);margin:24px 0"/>
+        <h2 style="font-size:1.1rem">Profile</h2>
+        <form id="nameForm" class="form" style="max-width:360px;text-align:left;margin:12px auto 24px">
+          <label><span>Display name</span><input name="name" required minlength="2" maxlength="60" value="${escapeHtml(currentUser.name || '')}"/></label>
+          <button type="submit" class="btn btn-block">Save name</button>
+        </form>
         <h2 style="font-size:1.1rem">Change password</h2>
         <form id="pwForm" class="form" style="max-width:360px;text-align:left;margin:12px auto">
           <label><span>Current</span><input name="current_password" type="password" required minlength="6"/></label>
@@ -256,6 +295,16 @@ async function renderPage() {
           <button type="submit" class="btn btn-block">Update password</button>
         </form>`;
       $('btnLogout')?.addEventListener('click', logout);
+      $('nameForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = new FormData(e.target).get('name');
+        try {
+          const data = await api('/auth/profile', { method: 'PATCH', body: { name } });
+          currentUser = data.user;
+          renderNavAuth();
+          alert('Name updated');
+        } catch (err) { alert(err.message); }
+      });
       $('pwForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);

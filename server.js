@@ -463,6 +463,20 @@ app.get('/api/v1/auth/me', auth, (req, res) => {
 });
 
 
+app.patch('/api/v1/auth/profile', auth, (req, res) => {
+  const name = String(req.body?.name || '').trim();
+  if (name.length < 2 || name.length > 60) {
+    return res.status(400).json({ error: 'Name must be 2–60 characters' });
+  }
+  const db = load();
+  const user = db.users.find((u) => u.id === req.user.id);
+  if (!user) return res.status(404).json({ error: 'Not found' });
+  user.name = name;
+  sec.audit(db, { action: 'profile_updated', username: user.username, ip: sec.clientIp(req) });
+  save(db);
+  res.json({ user: publicUser(user) });
+});
+
 app.post('/api/v1/auth/password', auth, authLimiter, (req, res) => {
   const current = String(req.body?.current_password || '');
   const next = String(req.body?.new_password || '');
@@ -741,6 +755,19 @@ function applyConfig(db, cfg) {
   if (cfg.pages) db.pages = cfg.pages;
 }
 
+app.get('/api/v1/admin/notifications', auth, adminOnly, (req, res) => {
+  const db = load();
+  const notes = Array.isArray(db.admin_notifications) ? db.admin_notifications.slice(-50).reverse() : [];
+  res.json({ items: notes });
+});
+
+app.post('/api/v1/admin/notifications/read', auth, adminOnly, (req, res) => {
+  const db = load();
+  (db.admin_notifications || []).forEach((n) => { n.read = true; });
+  save(db);
+  res.json({ ok: true });
+});
+
 app.get('/api/v1/admin/dashboard', auth, adminOnly, (req, res) => {
   const db = load();
   res.json({
@@ -1010,6 +1037,32 @@ app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
 });
 
 // Reels engagement
+app.get('/api/v1/reels/saved', auth, (req, res) => {
+  const db = load();
+  const ids = new Set(
+    (db.reel_saves || []).filter((x) => x.user_id === req.user.id).map((x) => x.reel_id)
+  );
+  const items = (db.reels || [])
+    .filter((r) => ids.has(r.id))
+    .map((r) => {
+      const likes = (db.reel_likes || []).filter((x) => x.reel_id === r.id).length;
+      const saves = (db.reel_saves || []).filter((x) => x.reel_id === r.id).length;
+      return {
+        id: r.id,
+        title: r.title,
+        url: r.url,
+        thumb: r.thumb || r.url,
+        media_type: r.media_type || 'image',
+        likes,
+        saves,
+        liked: (db.reel_likes || []).some((x) => x.reel_id === r.id && x.user_id === req.user.id),
+        saved: true,
+        comments_count: (db.reel_comments || []).filter((x) => x.reel_id === r.id).length
+      };
+    });
+  res.json({ items });
+});
+
 app.get('/api/v1/reels/:id', authOptional, (req, res) => {
   const db = load();
   const item = (db.reels || []).find((r) => r.id === +req.params.id);
@@ -1362,7 +1415,7 @@ function broadcastUser(userId, payload) {
 }
 
 function notifyNewMessage(conv, msg) {
-  const preview = msg.body || (msg.attachment ? ('📎 ' + (msg.attachment.name || 'file')) : '');
+  const preview = msg.body || (msg.attachment ? ('File: ' + (msg.attachment.name || 'attachment')) : '');
   const payload = {
     type: 'new_message',
     conversation_id: conv.id,
@@ -1375,20 +1428,31 @@ function notifyNewMessage(conv, msg) {
       last_at: conv.last_at,
       admin_unread: conv.admin_unread,
       user_unread: conv.user_unread
-    }
-  };
-  if (msg.sender_role === 'user') {
-    broadcastAdmin(payload);
-    broadcastAdmin({
-      type: 'notification',
-      kind: 'message',
-      title: conv.name || conv.username || 'User',
-      body: preview,
+    },
+    notify: {
       username: conv.username,
       name: conv.name,
+      text: preview
+    }
+  };
+  // Persist in-app admin notification when user messages
+  if (msg.sender_role === 'user') {
+    const db = load();
+    if (!Array.isArray(db.admin_notifications)) db.admin_notifications = [];
+    db.admin_notifications.push({
+      id: (db.admin_notifications.length ? db.admin_notifications[db.admin_notifications.length - 1].id : 0) + 1,
+      kind: 'message',
       conversation_id: conv.id,
-      at: msg.created_at
+      username: conv.username,
+      name: conv.name,
+      text: String(preview).slice(0, 200),
+      at: new Date().toISOString(),
+      read: false
     });
+    if (db.admin_notifications.length > 200) db.admin_notifications = db.admin_notifications.slice(-150);
+    save(db);
+    broadcastAdmin(payload);
+    broadcastAdmin({ type: 'toast', title: conv.name || conv.username, body: preview });
   } else {
     broadcastUser(conv.user_id, payload);
   }
@@ -1400,6 +1464,26 @@ wss.on('connection', (ws) => {
   ws.on('message', (raw) => {
     let data;
     try { data = JSON.parse(String(raw)); } catch { return; }
+    if (data.type === 'typing' && data.conversation_id) {
+      const meta = wsClients.get(ws);
+      if (!meta) return;
+      const payload = {
+        type: 'typing',
+        conversation_id: +data.conversation_id,
+        from_role: meta.role,
+        from_name: meta.name || meta.username,
+        typing: !!data.typing
+      };
+      if (isAdminRole(meta.role)) {
+        // admin typing -> notify user of that conversation
+        const db = load();
+        const conv = (db.conversations || []).find((c) => c.id === +data.conversation_id);
+        if (conv) broadcastUser(conv.user_id, payload);
+      } else {
+        broadcastAdmin(payload);
+      }
+      return;
+    }
     if (data.type === 'auth' && data.token) {
       try {
         const payload = jwt.verify(data.token, JWT_SECRET_EFFECTIVE);

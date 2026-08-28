@@ -142,6 +142,16 @@
       let data;
       try { data = JSON.parse(ev.data); } catch { return; }
       if (data.type === 'new_message' && data.conversation_id === convId) loadMessages().catch(() => {});
+      if (data.type === 'typing' && data.conversation_id === convId) {
+        const tip = document.getElementById('typingHint');
+        if (!tip) return;
+        if (data.typing) {
+          tip.textContent = (data.from_name || 'Studio') + ' is typing…';
+          tip.classList.remove('hidden');
+        } else {
+          tip.classList.add('hidden');
+        }
+      }
     };
     socket.onclose = () => setTimeout(connectWs, 4000);
   }
@@ -192,7 +202,9 @@
         <div class="bubble ${mine ? 'mine' : 'theirs'}">
           ${m.body ? `<div>${escape(m.body)}</div>` : ''}
           ${attachmentHtml(m.attachment)}
-          <div class="meta"><span>${fmtTime(m.created_at)}</span></div>
+          <div class="meta"><span>${fmtTime(m.created_at)}</span>${
+            mine ? `<span class="ticks">${m.status === 'read' ? '✓✓' : m.status === 'delivered' ? '✓✓' : '✓'}</span>` : ''
+          }</div>
         </div>
       </div>`;
     }).join('') || '<div class="chat-empty">Message the studio privately.<br/>Or use WhatsApp · Instagram · Email above.</div>';
@@ -253,6 +265,7 @@
         </div>
         <div class="chat-thread-wrap">
           <div class="chat-thread" id="thread"></div>
+          <p class="typing-hint hidden" id="typingHint"></p>
           <form class="chat-compose" id="compose">
             <label class="attach-btn" title="Attach">${ICONS.attach}
               <input type="file" name="file" id="fileInput" accept="image/*,video/mp4,video/webm,.pdf,.doc,.docx,.txt"/>
@@ -280,10 +293,18 @@
     const chip = $('fileChip');
     const msgInput = $('msgInput');
 
+    let typingTimer = null;
+    function sendTyping(on) {
+      if (!socket || socket.readyState !== 1 || !convId) return;
+      try { socket.send(JSON.stringify({ type: 'typing', conversation_id: convId, typing: !!on })); } catch (_) {}
+    }
     msgInput.addEventListener('input', () => {
       msgInput.style.height = 'auto';
       msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
       if (msgInput.value.trim().length > 0) hideFrontChannels();
+      sendTyping(true);
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => sendTyping(false), 1200);
     });
     fileInput.onchange = () => {
       if (fileInput.files[0]) {

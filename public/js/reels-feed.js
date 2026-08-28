@@ -47,6 +47,15 @@
       return;
     }
     feed.innerHTML = '<div class="reel-loader"><div class="spinner"></div><p>Loading reels…</p></div>';
+    // saved link injected once
+    if (!document.getElementById('savedLink')) {
+      const a = document.createElement('a');
+      a.id = 'savedLink';
+      a.href = '/saved.html';
+      a.textContent = 'Saved';
+      a.style.cssText = 'position:fixed;top:64px;right:12px;z-index:20;color:#fff;background:rgba(0,0,0,.45);padding:8px 12px;border-radius:999px;font-size:.8rem;text-decoration:none';
+      document.body.appendChild(a);
+    }
     try {
       const data = await api('/reels');
       const items = data.items || [];
@@ -70,6 +79,8 @@
             <span data-sc="${r.id}">${r.saves || 0}</span>
             <button type="button" data-copy="${r.id}" aria-label="Share">${svg.share}</button>
             <span>Share</span>
+            <button type="button" data-mute class="mute-btn" aria-label="Sound">♪</button>
+            <span>Sound</span>
           </div>
           <div class="reel-meta"><h2>${escape(r.title || 'Reel')}</h2></div>
         </section>`;
@@ -92,7 +103,31 @@
     }
   }
 
+  let lastTap = 0;
   $('feed').addEventListener('click', async (e) => {
+    const mute = e.target.closest('[data-mute]');
+    if (mute) {
+      const slide = mute.closest('.reel-slide');
+      const vid = slide && slide.querySelector('video');
+      if (vid) {
+        vid.muted = !vid.muted;
+        mute.classList.toggle('on', !vid.muted);
+      }
+      return;
+    }
+    // double-tap on media to like
+    const media = e.target.closest('.reel-slide video, .reel-slide img');
+    if (media && !e.target.closest('.reel-actions')) {
+      const now = Date.now();
+      if (now - lastTap < 320) {
+        const slide = media.closest('.reel-slide');
+        const likeBtn = slide && slide.querySelector('[data-like]');
+        if (likeBtn) likeBtn.click();
+        lastTap = 0;
+        return;
+      }
+      lastTap = now;
+    }
     const like = e.target.closest('[data-like]');
     const save = e.target.closest('[data-save]');
     const comment = e.target.closest('[data-comment]');
