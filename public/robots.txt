@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /Hjwihebdiggeksyevkdibendkxbskjwowhdjfidvbebd
+Disallow: /_panel.html
+Disallow: /admin
+
+Sitemap: https://artists-studio.onrender.com/sitemap.xml

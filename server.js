@@ -86,6 +86,28 @@ const publicStorage = multer.diskStorage({
     cb(null, Date.now() + '-' + crypto.randomBytes(4).toString('hex') + '-' + safe);
   }
 });
+let sharp = null;
+try { sharp = require('sharp'); } catch (_) { console.warn('sharp not installed — uploads stored as-is'); }
+
+async function compressImageIfNeeded(filePath, mime) {
+  if (!sharp || !(mime || '').startsWith('image/')) return filePath;
+  if ((mime || '').includes('gif') || (mime || '').includes('svg')) return filePath;
+  try {
+    const out = filePath + '.opt.jpg';
+    await sharp(filePath)
+      .rotate()
+      .resize({ width: 1920, height: 1920, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toFile(out);
+    fs.unlinkSync(filePath);
+    fs.renameSync(out, filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') ? filePath : filePath.replace(/\.[^.]+$/, '.jpg'));
+    return filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') ? filePath : filePath.replace(/\.[^.]+$/, '.jpg');
+  } catch (e) {
+    console.warn('compress skip', e.message);
+    return filePath;
+  }
+}
+
 const uploadPublic = multer({
   storage: publicStorage,
   limits: { fileSize: 80 * 1024 * 1024, files: 1 },
@@ -986,7 +1008,10 @@ app.post('/api/v1/admin/portfolio/upload', auth, adminOnly, (req, res, next) => 
     if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
     next();
   });
-}, (req, res) => {
+}, async (req, res) => {
+  if (req.file) {
+    try { req.file.path = await compressImageIfNeeded(req.file.path, req.file.mimetype); req.file.filename = path.basename(req.file.path); } catch (_) {}
+  }
   if (!req.file) return res.status(400).json({ error: 'Image file required' });
   const db = load();
   if (db._seq.portfolio == null) db._seq.portfolio = (db.portfolio || []).length;
@@ -1011,7 +1036,10 @@ app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
     if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
     next();
   });
-}, (req, res) => {
+}, async (req, res) => {
+  if (req.file && (req.file.mimetype || '').startsWith('image/')) {
+    try { req.file.path = await compressImageIfNeeded(req.file.path, req.file.mimetype); req.file.filename = path.basename(req.file.path); } catch (_) {}
+  }
   if (!req.file) return res.status(400).json({ error: 'Video/image file required' });
   const db = load();
   if (db._seq.reels == null) db._seq.reels = (db.reels || []).length;
@@ -1145,6 +1173,25 @@ app.get('/api/v1/reels/:id/comments', (req, res) => {
 
 
 // ——— Phase 11 Security ———
+app.get('/api/v1/admin/security/rate-chart', auth, adminOnly, (req, res) => {
+  const db = load();
+  const s = db.security || {};
+  const hours = Array.from({ length: 24 }, (_, i) => ({ hour: i, failed: 0, audit: 0 }));
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  (s.failed_logins || []).forEach((f) => {
+    const ts = new Date(f.at).getTime();
+    if (now - ts > day) return;
+    hours[new Date(ts).getHours()].failed++;
+  });
+  (s.audit || []).forEach((a) => {
+    const ts = new Date(a.at).getTime();
+    if (now - ts > day) return;
+    hours[new Date(ts).getHours()].audit++;
+  });
+  res.json({ hours, failed_24h: hours.reduce((n, h) => n + h.failed, 0), audit_24h: hours.reduce((n, h) => n + h.audit, 0) });
+});
+
 app.get('/api/v1/admin/security/dashboard', auth, adminOnly, (req, res) => {
   const db = load();
   const s = sec.ensureSecurity(db);
@@ -1375,6 +1422,16 @@ app.get(sec.ADMIN_PATH, (req, res) => {
 });
 app.get(['/admin', '/admin.html', '/admin/'], (_req, res) => {
   res.status(404).sendFile(path.join(ROOT, 'public', '404.html'));
+});
+
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain').sendFile(path.join(ROOT, 'public', 'robots.txt'));
+});
+app.get('/sitemap.xml', (_req, res) => {
+  res.type('application/xml').sendFile(path.join(ROOT, 'public', 'sitemap.xml'));
+});
+app.get('/favicon.svg', (_req, res) => {
+  res.type('image/svg+xml').sendFile(path.join(ROOT, 'public', 'favicon.svg'));
 });
 
 app.get('/', (_req, res) => {

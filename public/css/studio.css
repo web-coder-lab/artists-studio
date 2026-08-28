@@ -117,3 +117,22 @@ main{flex:1;max-width:1040px;width:100%;margin:0 auto;padding:28px 20px 72px}
 .lightbox-nav.next{right:12px}
 .lightbox-cap{color:#c8c4bb;margin-top:14px;text-align:center;max-width:90vw}
 .folio-card{cursor:pointer}
+
+/* Phase E — light theme */
+html[data-theme="light"]{
+  --bg:#f6f3ee;--bg-soft:#fff;--text:#1a1814;--muted:#6b665c;--line:rgba(0,0,0,.1);
+  --accent:#8a6b3d;--shadow:0 16px 40px rgba(0,0,0,.08);
+}
+html[data-theme="light"] body{background:var(--bg);color:var(--text)}
+html[data-theme="light"] .nav{background:rgba(246,243,238,.92);border-bottom-color:var(--line)}
+html[data-theme="light"] .grain{opacity:.02}
+html[data-theme="light"] .btn{background:var(--accent);color:#fff}
+html[data-theme="light"] .btn-ghost{color:var(--text);border-color:var(--line)}
+html[data-theme="light"] .modal-card{background:#fff;border-color:var(--line)}
+.theme-toggle{
+  width:40px;height:40px;border-radius:12px;border:1px solid var(--line);
+  background:transparent;color:var(--text);cursor:pointer;font-size:1rem;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.rate-bars{display:flex;align-items:flex-end;gap:4px;height:80px;margin:12px 0}
+.rate-bars span{flex:1;background:var(--accent);opacity:.75;border-radius:4px 4px 0 0;min-height:2px}

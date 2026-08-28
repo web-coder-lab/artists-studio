@@ -645,3 +645,25 @@ async function downloadBackup() {
 }
 window.changeAdminPassword = changeAdminPassword;
 window.downloadBackup = downloadBackup;
+
+/* Phase E rate chart */
+async function loadRateChart() {
+  try {
+    const data = await api('/admin/security/rate-chart');
+    let host = document.getElementById('rateChart');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'rateChart';
+      host.innerHTML = '<p style="color:#9c978c;font-size:.85rem">Failed logins (24h by hour)</p><div class="rate-bars" id="rateBars"></div>';
+      (document.querySelector('main') || document.body).appendChild(host);
+    }
+    const max = Math.max(1, ...data.hours.map((h) => h.failed));
+    const bars = document.getElementById('rateBars');
+    if (bars) {
+      bars.innerHTML = data.hours.map((h) =>
+        `<span title="${h.hour}:00 — ${h.failed} failed" style="height:${Math.round((h.failed / max) * 100)}%"></span>`
+      ).join('');
+    }
+  } catch (_) {}
+}
+setTimeout(() => loadRateChart(), 1500);
