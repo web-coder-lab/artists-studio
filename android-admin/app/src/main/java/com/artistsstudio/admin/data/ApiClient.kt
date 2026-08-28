@@ -22,32 +22,29 @@ class ApiClient(private val session: SessionStore) {
     private val json = "application/json; charset=utf-8".toMediaType()
 
     suspend fun health(): JSONObject = get("health", auth = false)
-    suspend fun ping(): JSONObject = get("ping", auth = false)
-
     suspend fun login(username: String, password: String): JSONObject {
         val body = JSONObject().put("username", username).put("password", password)
         return post("auth/login", body, auth = false)
     }
-
     suspend fun me(): JSONObject = get("auth/me")
     suspend fun logout(): JSONObject = post("auth/logout", JSONObject())
 
     suspend fun dashboard(): JSONObject = get("admin/dashboard")
     suspend fun dbStatus(): JSONObject = get("admin/db-status")
-    suspend fun catalog(): JSONObject = get("admin/catalog")
+
     suspend fun notifications(): JSONArray {
         val o = get("admin/notifications")
         return o.optJSONArray("items") ?: JSONArray()
     }
+    suspend fun markNotificationsRead(): JSONObject =
+        post("admin/notifications/read", JSONObject())
 
     suspend fun conversations(): JSONArray {
         val o = get("conversations")
         return o.optJSONArray("items") ?: JSONArray()
     }
-
     suspend fun messages(conversationId: Int): JSONObject =
         get("conversations/$conversationId/messages")
-
     suspend fun sendMessage(conversationId: Int, text: String): JSONObject {
         val body = JSONObject().put("body", text)
         return post("conversations/$conversationId/messages", body)
@@ -57,35 +54,39 @@ class ApiClient(private val session: SessionStore) {
         val o = get("admin/contacts")
         return o.optJSONArray("items") ?: JSONArray()
     }
+    suspend fun patchContact(id: Int, status: String): JSONObject {
+        val body = JSONObject().put("status", status)
+        return patch("admin/contacts/$id", body)
+    }
 
     private suspend fun get(path: String, auth: Boolean = true): JSONObject =
         withContext(Dispatchers.IO) {
             val b = Request.Builder().url(base + path)
-            if (auth) {
-                val t = session.token() ?: throw Exception("Not signed in")
-                b.header("Authorization", "Bearer $t")
-            }
-            val res = client.newCall(b.get().build()).execute()
-            parse(res.code, res.body?.string().orEmpty())
+            if (auth) b.header("Authorization", "Bearer ${session.token() ?: throw Exception("Not signed in")}")
+            parse(client.newCall(b.get().build()).execute())
         }
 
     private suspend fun post(path: String, body: JSONObject, auth: Boolean = true): JSONObject =
         withContext(Dispatchers.IO) {
-            val b = Request.Builder()
-                .url(base + path)
-                .post(body.toString().toRequestBody(json))
-            if (auth) {
-                val t = session.token() ?: throw Exception("Not signed in")
-                b.header("Authorization", "Bearer $t")
-            }
-            val res = client.newCall(b.build()).execute()
-            parse(res.code, res.body?.string().orEmpty())
+            val b = Request.Builder().url(base + path).post(body.toString().toRequestBody(json))
+            if (auth) b.header("Authorization", "Bearer ${session.token() ?: throw Exception("Not signed in")}")
+            parse(client.newCall(b.build()).execute())
         }
 
-    private fun parse(code: Int, text: String): JSONObject {
-        if (code !in 200..299) {
+    private suspend fun patch(path: String, body: JSONObject): JSONObject =
+        withContext(Dispatchers.IO) {
+            val b = Request.Builder()
+                .url(base + path)
+                .patch(body.toString().toRequestBody(json))
+                .header("Authorization", "Bearer ${session.token() ?: throw Exception("Not signed in")}")
+            parse(client.newCall(b.build()).execute())
+        }
+
+    private fun parse(res: okhttp3.Response): JSONObject {
+        val text = res.body?.string().orEmpty()
+        if (res.code !in 200..299) {
             val err = runCatching { JSONObject(text).optString("error") }.getOrNull()
-            throw Exception(err?.ifBlank { null } ?: "HTTP $code")
+            throw Exception(err?.ifBlank { null } ?: "HTTP ${res.code}")
         }
         return if (text.isBlank()) JSONObject() else JSONObject(text)
     }

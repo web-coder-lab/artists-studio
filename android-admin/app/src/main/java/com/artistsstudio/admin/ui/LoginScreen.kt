@@ -42,7 +42,7 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
             enabled = !loading,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            colors = fieldColors()
+            colors = studioFieldColors()
         )
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(
@@ -55,7 +55,7 @@ fun LoginScreen(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { submit() }),
             modifier = Modifier.fillMaxWidth(),
-            colors = fieldColors()
+            colors = studioFieldColors()
         )
         if (!error.isNullOrBlank()) {
             Text(error, color = Danger, modifier = Modifier.padding(top = 12.dp), fontSize = 13.sp)
@@ -83,14 +83,3 @@ fun LoginScreen(
 
 private val ColorOnAccent = androidx.compose.ui.graphics.Color(0xFF14110D)
 
-@Composable
-fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = Accent,
-    unfocusedBorderColor = Line,
-    focusedLabelColor = Accent,
-    unfocusedLabelColor = Muted,
-    cursorColor = Accent,
-    focusedTextColor = TextC,
-    unfocusedTextColor = TextC,
-    disabledTextColor = Muted
-)

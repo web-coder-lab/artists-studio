@@ -9,8 +9,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.artistsstudio.admin.data.ApiClient
 import com.artistsstudio.admin.data.SessionStore
-import com.artistsstudio.admin.ui.DashboardScreen
 import com.artistsstudio.admin.ui.GateScreen
+import com.artistsstudio.admin.ui.HomeShell
 import com.artistsstudio.admin.ui.LoginScreen
 import com.artistsstudio.admin.ui.theme.Bg
 import com.artistsstudio.admin.ui.theme.StudioTheme
@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /**
- * Phase 3 — Gate → Login → Dashboard (API only, no WebView)
+ * Phase 3–4: Gate → Login → Home (Dashboard · Chat · Contacts · Notifications)
  */
 class MainActivity : ComponentActivity() {
     private lateinit var session: SessionStore
@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             StudioTheme {
                 Surface(Modifier.fillMaxSize(), color = Bg) {
-                    Phase3Root(api, session)
+                    AppRoot(api, session)
                 }
             }
         }
@@ -42,15 +42,15 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Phase3Root(api: ApiClient, session: SessionStore) {
-    var stage by remember { mutableStateOf("gate") } // gate | login | home
+fun AppRoot(api: ApiClient, session: SessionStore) {
+    var stage by remember { mutableStateOf("gate") }
     var loginLoading by remember { mutableStateOf(false) }
     var loginError by remember { mutableStateOf<String?>(null) }
     var adminName by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
 
     when (stage) {
-        "gate" -> GateScreen(api) { _ ->
+        "gate" -> GateScreen(api) {
             scope.launch {
                 val token = session.token()
                 if (token.isNullOrBlank()) {
@@ -81,14 +81,15 @@ fun Phase3Root(api: ApiClient, session: SessionStore) {
                     val token = res.optString("token")
                     val u = res.optJSONObject("user") ?: JSONObject()
                     val role = u.optString("role")
-                    if (role !in listOf("admin", "superadmin", "moderator")) {
-                        loginError = "Admin account required"
-                    } else if (token.isBlank()) {
-                        loginError = "No token returned"
-                    } else {
-                        session.save(token, u.optString("name"), role)
-                        adminName = u.optString("name").ifBlank { u.optString("username") }
-                        stage = "home"
+                    when {
+                        role !in listOf("admin", "superadmin", "moderator") ->
+                            loginError = "Admin account required"
+                        token.isBlank() -> loginError = "No token returned"
+                        else -> {
+                            session.save(token, u.optString("name"), role)
+                            adminName = u.optString("name").ifBlank { u.optString("username") }
+                            stage = "home"
+                        }
                     }
                 } catch (e: Exception) {
                     loginError = e.message ?: "Login failed"
@@ -96,7 +97,7 @@ fun Phase3Root(api: ApiClient, session: SessionStore) {
                 loginLoading = false
             }
         }
-        else -> DashboardScreen(api, adminName) {
+        else -> HomeShell(api, adminName) {
             scope.launch {
                 runCatching { api.logout() }
                 session.clear()

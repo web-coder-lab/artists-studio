@@ -27,3 +27,18 @@ private val scheme = darkColorScheme(
 fun StudioTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = scheme, content = content)
 }
+
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.runtime.Composable
+
+@Composable
+fun studioFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = Accent,
+    unfocusedBorderColor = Line,
+    focusedLabelColor = Accent,
+    unfocusedLabelColor = Muted,
+    cursorColor = Accent,
+    focusedTextColor = TextC,
+    unfocusedTextColor = TextC,
+    disabledTextColor = Muted
+)
