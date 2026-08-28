@@ -6,6 +6,11 @@ const dataDir = path.join(__dirname, 'data');
 const dbFile = path.join(dataDir, 'studio.json');
 fs.mkdirSync(dataDir, { recursive: true });
 
+const DATABASE_URL = process.env.DATABASE_URL || '';
+let pgPool = null;
+let ready = false;
+let memoryCache = null;
+
 function defaultDb() {
   return {
     users: [
@@ -16,6 +21,7 @@ function defaultDb() {
         password_hash: bcrypt.hashSync('admin123', 10),
         role: 'superadmin',
         status: 'active',
+        must_change_password: true,
         created_at: new Date().toISOString(),
         last_login: null
       }
@@ -28,14 +34,13 @@ function defaultDb() {
         "Artist's Studio is a private atelier online — portfolio, conversation, and collaboration under one calm roof.",
       profile_name: 'Studio Artist',
       profile_role: 'Photographer & Director',
-      profile_bio:
-        'I make images that feel still and honest — portraits, editorial, and quiet documentary work. Every frame is considered.',
+      profile_bio: 'I make images that feel still and honest — portraits, editorial, and quiet documentary work.',
       about:
-        "Artist's Studio began as a small practice and grew into a place for clients and collaborators to meet the work properly — not as a feed, but as a room.",
+        "Artist's Studio began as a small practice and grew into a place for clients and collaborators who value restraint and clarity.",
       services: [
-        { title: 'Portrait', text: 'Studio and location portraits with natural direction.' },
-        { title: 'Editorial', text: 'Story-led series for publications and brands.' },
-        { title: 'Events', text: 'Discreet coverage with an observational eye.' }
+        { title: 'Portrait sessions', body: 'Directed sittings with calm pacing and natural light preference.' },
+        { title: 'Editorial / lookbook', body: 'Series work for brands and personal projects.' },
+        { title: 'Consultation', body: 'Shot planning, references, and delivery notes.' }
       ]
     },
     theme: {
@@ -45,31 +50,6 @@ function defaultDb() {
       font_display: 'Cormorant Garamond',
       font_body: 'DM Sans'
     },
-    socials: {
-      instagram: 'https://www.instagram.com/aartistsstudios?igsh=YTllNTA0cXZkOXJj',
-      youtube: '',
-      whatsapp: '923244015101',
-      email: 'abdullahshah5919@gmail.com'
-    },
-    draft: null,
-    published_at: null,
-    versions: [],
-    portfolio: [],
-    reels: [],
-    policies: {
-      privacy: {
-        title: 'Privacy Policy',
-        body: 'We collect only what is needed to run your account and conversations. Passwords are hashed. Private media is not public. Contact submissions are visible only to the studio admin.'
-      },
-      terms: {
-        title: 'Terms & Conditions',
-        body: "By using Artist's Studio you agree to use the platform respectfully. Accounts may be disabled for abuse. Bookings and commercial work may have separate written agreements."
-      },
-      disclaimer: {
-        title: 'Disclaimer',
-        body: 'Portfolio images are representative. Availability, pricing, and delivery timelines are confirmed directly with the studio.'
-      }
-    },
     pages: {
       home: { slug: 'home', title: 'Home', published: true },
       about: { slug: 'about', title: 'About', published: true },
@@ -78,66 +58,195 @@ function defaultDb() {
       services: { slug: 'services', title: 'Services', published: true },
       contact: { slug: 'contact', title: 'Contact', published: true }
     },
+    portfolio: [],
+    reels: [],
+    socials: {
+      whatsapp: '923244015101',
+      email: 'abdullahshah5919@gmail.com',
+      instagram: 'https://www.instagram.com/aartistsstudios?igsh=YTllNTA0cXZkOXJj',
+      youtube: ''
+    },
+    policies: {
+      privacy: {
+        slug: 'privacy',
+        title: 'Privacy',
+        body: 'We collect only what is needed to run Artist\'s Studio accounts, messages, and optional contact forms.'
+      },
+      terms: {
+        slug: 'terms',
+        title: 'Terms',
+        body: 'By using Artist\'s Studio you agree to respectful use of messaging and media features.'
+      }
+    },
     contacts: [],
     conversations: [],
     messages: [],
     media: [],
     calls: [],
-    _seq: { users: 1, portfolio: 0, reels: 0, contacts: 0, conversations: 0, messages: 0, media: 0, calls: 0, versions: 0 }
+    versions: [],
+    draft: null,
+    published_at: null,
+    reel_likes: [],
+    reel_comments: [],
+    reel_saves: [],
+    security: {
+      failed_logins: [],
+      sessions: [],
+      audit: [],
+      locks: {}
+    },
+    _seq: {
+      users: 1,
+      contacts: 0,
+      conversations: 0,
+      messages: 0,
+      media: 0,
+      portfolio: 0,
+      reels: 0,
+      calls: 0,
+      versions: 0,
+      reel_comments: 0
+    }
   };
 }
 
-function load() {
-  if (!fs.existsSync(dbFile)) {
-    const d = defaultDb();
-    save(d);
-    return d;
-  }
-  const raw = JSON.parse(fs.readFileSync(dbFile, 'utf8'));
-  // migrate phase-1 DBs missing CMS fields
-  const base = defaultDb();
+function normalize(raw) {
+  if (!raw || typeof raw !== 'object') return defaultDb();
   let changed = false;
-  for (const key of ['site', 'theme', 'socials', 'portfolio', 'reels', 'policies', 'pages', 'contacts', 'conversations', 'messages', 'media', 'calls', 'versions']) {
-    if (!raw[key]) {
-      raw[key] = base[key];
-      changed = true;
-    }
-  }
-  if (!raw._seq) raw._seq = base._seq;
-  if (raw._seq.contacts == null) raw._seq.contacts = (raw.contacts || []).length;
-  if (raw._seq.conversations == null) raw._seq.conversations = (raw.conversations || []).length;
-  if (raw._seq.messages == null) raw._seq.messages = (raw.messages || []).length;
-  if (raw._seq.media == null) raw._seq.media = (raw.media || []).length;
-  if (raw._seq.calls == null) raw._seq.calls = (raw.calls || []).length;
-  if (!raw.theme) raw.theme = base.theme;
-  if (!Array.isArray(raw.versions)) raw.versions = [];
-  if (raw._seq.versions == null) raw._seq.versions = raw.versions.length;
-  if (raw.draft === undefined) raw.draft = null;
-  if (!raw.cleared_demo_media) {
-    // remove seeded Unsplash demo content once
-    raw.portfolio = [];
-    raw.reels = [];
-    if (raw._seq) { raw._seq.portfolio = 0; raw._seq.reels = 0; }
-    raw.cleared_demo_media = true;
+  if (!Array.isArray(raw.users)) { raw.users = defaultDb().users; changed = true; }
+  if (!raw.site) { raw.site = defaultDb().site; changed = true; }
+  if (!raw.theme) { raw.theme = defaultDb().theme; changed = true; }
+  if (!raw.pages) { raw.pages = defaultDb().pages; changed = true; }
+  if (!Array.isArray(raw.portfolio)) { raw.portfolio = []; changed = true; }
+  if (!Array.isArray(raw.reels)) { raw.reels = []; changed = true; }
+  if (!raw.socials) { raw.socials = defaultDb().socials; changed = true; }
+  if (!raw.policies) { raw.policies = defaultDb().policies; changed = true; }
+  if (!Array.isArray(raw.contacts)) { raw.contacts = []; changed = true; }
+  if (!Array.isArray(raw.conversations)) { raw.conversations = []; changed = true; }
+  if (!Array.isArray(raw.messages)) { raw.messages = []; changed = true; }
+  if (!Array.isArray(raw.media)) { raw.media = []; changed = true; }
+  if (!Array.isArray(raw.calls)) { raw.calls = []; changed = true; }
+  if (!Array.isArray(raw.versions)) { raw.versions = []; changed = true; }
+  if (!Array.isArray(raw.reel_likes)) { raw.reel_likes = []; changed = true; }
+  if (!Array.isArray(raw.reel_comments)) { raw.reel_comments = []; changed = true; }
+  if (!Array.isArray(raw.reel_saves)) { raw.reel_saves = []; changed = true; }
+  if (!raw.security) {
+    raw.security = { failed_logins: [], sessions: [], audit: [], locks: {} };
     changed = true;
   }
-  if (!Array.isArray(raw.reel_likes)) raw.reel_likes = [];
-  if (!Array.isArray(raw.reel_comments)) raw.reel_comments = [];
-  if (!Array.isArray(raw.reel_saves)) raw.reel_saves = [];
-  if (raw._seq.reel_comments == null) raw._seq.reel_comments = (raw.reel_comments || []).length;
-  // Studio public contact (Phase setup)
-  raw.socials = Object.assign({}, raw.socials || {}, {
-    whatsapp: '923244015101',
-    email: 'abdullahshah5919@gmail.com',
-    instagram: 'https://www.instagram.com/aartistsstudios?igsh=YTllNTA0cXZkOXJj'
+  if (!raw.security.failed_logins) raw.security.failed_logins = [];
+  if (!raw.security.sessions) raw.security.sessions = [];
+  if (!raw.security.audit) raw.security.audit = [];
+  if (!raw.security.locks) raw.security.locks = {};
+  if (!raw._seq) raw._seq = defaultDb()._seq;
+  // ensure admin has must_change_password flag if missing (legacy)
+  raw.users.forEach((u) => {
+    if (u.role === 'superadmin' && u.must_change_password === undefined) {
+      // don't force existing if already logged in production; only new seeds
+      u.must_change_password = false;
+    }
   });
-  changed = true;
-  if (changed) save(raw);
-  return raw;
+  return { data: raw, changed };
 }
 
-function save(db) {
+async function initPg() {
+  if (!DATABASE_URL) return false;
+  const { Pool } = require('pg');
+  pgPool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: DATABASE_URL.includes('render.com') || process.env.PGSSL === '1'
+      ? { rejectUnauthorized: false }
+      : undefined
+  });
+  await pgPool.query(`
+    CREATE TABLE IF NOT EXISTS studio_store (
+      id INT PRIMARY KEY DEFAULT 1,
+      data JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  const r = await pgPool.query('SELECT data FROM studio_store WHERE id = 1');
+  if (!r.rows.length) {
+    const d = defaultDb();
+    await pgPool.query(
+      'INSERT INTO studio_store (id, data) VALUES (1, $1::jsonb)',
+      [JSON.stringify(d)]
+    );
+    memoryCache = d;
+  } else {
+    const { data } = normalize(r.rows[0].data);
+    memoryCache = data;
+  }
+  ready = true;
+  console.log('DB: PostgreSQL connected (persistent)');
+  return true;
+}
+
+function loadFile() {
+  if (!fs.existsSync(dbFile)) {
+    const d = defaultDb();
+    saveFile(d);
+    return d;
+  }
+  try {
+    const raw = JSON.parse(fs.readFileSync(dbFile, 'utf8'));
+    const { data, changed } = normalize(raw);
+    if (changed) saveFile(data);
+    return data;
+  } catch (e) {
+    console.error('DB file corrupt, reseeding', e.message);
+    const d = defaultDb();
+    saveFile(d);
+    return d;
+  }
+}
+
+function saveFile(db) {
   fs.writeFileSync(dbFile, JSON.stringify(db, null, 2));
 }
 
-module.exports = { load, save };
+function load() {
+  if (pgPool && memoryCache) {
+    return memoryCache;
+  }
+  return loadFile();
+}
+
+function save(db) {
+  memoryCache = db;
+  if (pgPool) {
+    // fire-and-forget async write; keep sync API for existing code
+    pgPool
+      .query(
+        `INSERT INTO studio_store (id, data, updated_at) VALUES (1, $1::jsonb, NOW())
+         ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+        [JSON.stringify(db)]
+      )
+      .catch((e) => console.error('PG save error', e.message));
+    return;
+  }
+  saveFile(db);
+}
+
+async function init() {
+  try {
+    if (DATABASE_URL) {
+      await initPg();
+      return;
+    }
+  } catch (e) {
+    console.error('PG init failed, falling back to file:', e.message);
+    pgPool = null;
+  }
+  memoryCache = loadFile();
+  ready = true;
+  console.log('DB: file store', dbFile);
+}
+
+function exportPublicSafe(db) {
+  const copy = JSON.parse(JSON.stringify(db));
+  // strip password hashes from export option? keep for full backup admin only
+  return copy;
+}
+
+module.exports = { load, save, init, defaultDb, exportPublicSafe };

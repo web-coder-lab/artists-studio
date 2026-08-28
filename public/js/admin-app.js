@@ -615,3 +615,33 @@ $('btnRevokeAll')?.addEventListener('click', async () => {
   await api('/admin/security/sessions/revoke-all', { method: 'POST', body: '{}' });
   loadSecurity();
 });
+
+
+/* Phase A: password + backup */
+async function changeAdminPassword() {
+  const current_password = prompt('Current password');
+  if (current_password == null) return;
+  const new_password = prompt('New password (min 8 chars)');
+  if (new_password == null) return;
+  try {
+    await api('/auth/password', { method: 'POST', body: { current_password, new_password } });
+    alert('Password updated');
+  } catch (e) { alert(e.message); }
+}
+async function downloadBackup() {
+  try {
+    const t = token();
+    const res = await fetch(API + '/admin/backup', {
+      headers: { Authorization: 'Bearer ' + t },
+      credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Backup failed');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'artists-studio-backup.json';
+    a.click();
+  } catch (e) { alert(e.message); }
+}
+window.changeAdminPassword = changeAdminPassword;
+window.downloadBackup = downloadBackup;

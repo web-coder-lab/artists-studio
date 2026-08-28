@@ -4,7 +4,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
-const { load, save } = require('./db');
+const { load, save, init: initDb, exportPublicSafe } = require('./db');
 const sec = require('./security');
 const fs = require('fs');
 const multer = require('multer');
@@ -238,7 +238,7 @@ app.get('/api/v1/ping', (_req, res) => {
 });
 
 app.get('/api/v1/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'artists-studio', phase: 11, build: 'final' });
+  res.json({ status: 'ok', service: 'artists-studio', phase: 11, build: 'final', db: process.env.DATABASE_URL ? 'postgres' : 'file' });
 });
 
 // ——— Public CMS ———
@@ -460,6 +460,46 @@ app.post('/api/v1/auth/login', authLimiter, (req, res) => {
 app.get('/api/v1/auth/me', auth, (req, res) => {
   const token = extractToken(req);
   res.json({ user: publicUser(req.user), token: token || undefined });
+});
+
+
+app.post('/api/v1/auth/password', auth, authLimiter, (req, res) => {
+  const current = String(req.body?.current_password || '');
+  const next = String(req.body?.new_password || '');
+  if (!current || !next) return res.status(400).json({ error: 'Current and new password required' });
+  if (next.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
+  if (current === next) return res.status(400).json({ error: 'New password must differ from current' });
+  const db = load();
+  const user = db.users.find((u) => u.id === req.user.id);
+  if (!user || !bcrypt.compareSync(current, user.password_hash)) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+  user.password_hash = bcrypt.hashSync(next, 10);
+  user.must_change_password = false;
+  sec.audit(db, { action: 'password_changed', username: user.username, ip: sec.clientIp(req) });
+  // revoke other sessions optional — keep current
+  save(db);
+  res.json({ ok: true, user: publicUser(user) });
+});
+
+app.get('/api/v1/admin/backup', auth, adminOnly, (req, res) => {
+  const db = load();
+  sec.audit(db, { action: 'backup_export', username: req.user.username, ip: sec.clientIp(req) });
+  save(db);
+  const payload = exportPublicSafe(db);
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="artists-studio-backup.json"');
+  res.send(JSON.stringify(payload, null, 2));
+});
+
+app.get('/api/v1/admin/db-status', auth, adminOnly, (_req, res) => {
+  res.json({
+    persistent: !!(process.env.DATABASE_URL),
+    driver: process.env.DATABASE_URL ? 'postgres' : 'file',
+    note: process.env.DATABASE_URL
+      ? 'Data stored in PostgreSQL'
+      : 'File store — set DATABASE_URL for persistence'
+  });
 });
 
 app.post('/api/v1/auth/logout', auth, (req, res) => {
@@ -1421,5 +1461,12 @@ app.use((err, _req, res, _next) => {
   res.status(status).json({ error: status >= 500 ? 'Server error' : (err.message || 'Error') });
 });
 
-server.listen(PORT, () => console.log("Artist's Studio on :" + PORT + " (HTTP + WS /ws)"));
+initDb()
+  .then(() => {
+    server.listen(PORT, () => console.log("Artist's Studio on :" + PORT + " (HTTP + WS /ws)"));
+  })
+  .catch((e) => {
+    console.error('DB init fatal', e);
+    process.exit(1);
+  });
 

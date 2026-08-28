@@ -189,5 +189,19 @@
   <script src="/js/api-client.js"></script>
   <script src="/js/webrtc-call.js"></script>
   <script src="/js/admin-app.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const host = document.querySelector('[data-panel="security"], #security, .security-panel') || document.body;
+  if (document.getElementById('btnBackup')) return;
+  const bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;padding:12px;';
+  bar.innerHTML = '<button type="button" class="btn btn-sm" id="btnBackup">Download backup</button>' +
+    '<button type="button" class="btn btn-sm btn-ghost" id="btnPw">Change password</button>';
+  (document.querySelector('main') || document.body).appendChild(bar);
+  document.getElementById('btnBackup').onclick = () => window.downloadBackup && downloadBackup();
+  document.getElementById('btnPw').onclick = () => window.changeAdminPassword && changeAdminPassword();
+});
+</script>
 </body>
 </html>

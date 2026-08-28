@@ -157,6 +157,10 @@ async function refreshSession() {
     const data = await api('/auth/me');
     currentUser = data.user;
     if (data.token) setToken(data.token);
+    if (data.user && data.user.must_change_password && page !== 'account') {
+      // soft nudge — account page can force
+      console.info('Password change recommended');
+    }
   } catch (e) {
     if (e && e.auth) {
       setToken(null);
@@ -242,8 +246,35 @@ async function renderPage() {
           <article class="tile"><h3>Calls</h3><p class="muted">Voice & video — coming soon.</p></article>
         </div>
         <p style="margin:8px 0 16px"><a class="btn" href="/contact.html">Contact Artist</a></p>
-        <button type="button" class="btn btn-ghost" id="btnLogout">Sign out</button>`;
+        <button type="button" class="btn btn-ghost" id="btnLogout">Sign out</button>
+        <hr style="border:none;border-top:1px solid var(--line);margin:24px 0"/>
+        <h2 style="font-size:1.1rem">Change password</h2>
+        <form id="pwForm" class="form" style="max-width:360px;text-align:left;margin:12px auto">
+          <label><span>Current</span><input name="current_password" type="password" required minlength="6"/></label>
+          <label><span>New (min 8)</span><input name="new_password" type="password" required minlength="8"/></label>
+          <p class="form-error hidden" id="pwErr"></p>
+          <button type="submit" class="btn btn-block">Update password</button>
+        </form>`;
       $('btnLogout')?.addEventListener('click', logout);
+      $('pwForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+          await api('/auth/password', {
+            method: 'POST',
+            body: {
+              current_password: fd.get('current_password'),
+              new_password: fd.get('new_password')
+            }
+          });
+          alert('Password updated');
+          e.target.reset();
+          await refreshSession();
+        } catch (err) {
+          const pe = $('pwErr');
+          if (pe) { pe.textContent = err.message; pe.classList.remove('hidden'); }
+        }
+      });
     }
   }
 }
