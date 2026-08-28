@@ -1,6 +1,7 @@
 package com.artistsstudio.admin.ui.theme
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -27,9 +28,6 @@ private val scheme = darkColorScheme(
 fun StudioTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = scheme, content = content)
 }
-
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.runtime.Composable
 
 @Composable
 fun studioFieldColors() = OutlinedTextFieldDefaults.colors(
