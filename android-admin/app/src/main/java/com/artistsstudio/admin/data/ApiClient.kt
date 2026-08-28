@@ -22,17 +22,23 @@ class ApiClient(private val session: SessionStore) {
     private val json = "application/json; charset=utf-8".toMediaType()
 
     suspend fun health(): JSONObject = get("health", auth = false)
+    suspend fun ping(): JSONObject = get("ping", auth = false)
 
     suspend fun login(username: String, password: String): JSONObject {
-        val body = JSONObject()
-            .put("username", username)
-            .put("password", password)
+        val body = JSONObject().put("username", username).put("password", password)
         return post("auth/login", body, auth = false)
     }
 
     suspend fun me(): JSONObject = get("auth/me")
+    suspend fun logout(): JSONObject = post("auth/logout", JSONObject())
 
     suspend fun dashboard(): JSONObject = get("admin/dashboard")
+    suspend fun dbStatus(): JSONObject = get("admin/db-status")
+    suspend fun catalog(): JSONObject = get("admin/catalog")
+    suspend fun notifications(): JSONArray {
+        val o = get("admin/notifications")
+        return o.optJSONArray("items") ?: JSONArray()
+    }
 
     suspend fun conversations(): JSONArray {
         val o = get("conversations")
@@ -52,13 +58,6 @@ class ApiClient(private val session: SessionStore) {
         return o.optJSONArray("items") ?: JSONArray()
     }
 
-    suspend fun dbStatus(): JSONObject = get("admin/db-status")
-
-    suspend fun notifications(): JSONArray {
-        val o = get("admin/notifications")
-        return o.optJSONArray("items") ?: JSONArray()
-    }
-
     private suspend fun get(path: String, auth: Boolean = true): JSONObject =
         withContext(Dispatchers.IO) {
             val b = Request.Builder().url(base + path)
@@ -67,12 +66,7 @@ class ApiClient(private val session: SessionStore) {
                 b.header("Authorization", "Bearer $t")
             }
             val res = client.newCall(b.get().build()).execute()
-            val text = res.body?.string().orEmpty()
-            if (!res.isSuccessful) {
-                val err = runCatching { JSONObject(text).optString("error") }.getOrNull()
-                throw Exception(err?.ifBlank { null } ?: "HTTP ${res.code}")
-            }
-            if (text.isBlank()) JSONObject() else JSONObject(text)
+            parse(res.code, res.body?.string().orEmpty())
         }
 
     private suspend fun post(path: String, body: JSONObject, auth: Boolean = true): JSONObject =
@@ -85,11 +79,14 @@ class ApiClient(private val session: SessionStore) {
                 b.header("Authorization", "Bearer $t")
             }
             val res = client.newCall(b.build()).execute()
-            val text = res.body?.string().orEmpty()
-            if (!res.isSuccessful) {
-                val err = runCatching { JSONObject(text).optString("error") }.getOrNull()
-                throw Exception(err?.ifBlank { null } ?: "HTTP ${res.code}")
-            }
-            if (text.isBlank()) JSONObject() else JSONObject(text)
+            parse(res.code, res.body?.string().orEmpty())
         }
+
+    private fun parse(code: Int, text: String): JSONObject {
+        if (code !in 200..299) {
+            val err = runCatching { JSONObject(text).optString("error") }.getOrNull()
+            throw Exception(err?.ifBlank { null } ?: "HTTP $code")
+        }
+        return if (text.isBlank()) JSONObject() else JSONObject(text)
+    }
 }
