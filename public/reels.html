@@ -2,95 +2,318 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"/>
-  <meta name="theme-color" content="#000"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no"/>
+  <meta name="theme-color" content="#000000"/>
+  <meta name="description" content="Reels — Artist's Studio"/>
   <title>Reels — Artist's Studio</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/studio.css"/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
   <style>
-    body.reels-mode{background:#000;overflow:hidden;margin:0}
-    .reels-shell{position:fixed;inset:0;top:56px;background:#000}
-    .reels-feed{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
-    .reel-slide{
-      height:100%;scroll-snap-align:start;scroll-snap-stop:always;position:relative;
-      display:flex;align-items:center;justify-content:center;background:#050505;
+    :root {
+      --accent: #d4b483;
+      --accent-hot: #ff3b6b;
+      --glass: rgba(18,18,20,.55);
+      --line: rgba(255,255,255,.12);
     }
-    .reel-slide video,.reel-slide img{
-      width:100%;height:100%;object-fit:cover;background:#000;
-      animation:reelIn .45s ease;
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; height: 100%; background: #000; color: #fff;
+      font-family: "DM Sans", system-ui, sans-serif;
+      overflow: hidden;
     }
-    @keyframes reelIn{from{opacity:.4;transform:scale(1.03)}to{opacity:1;transform:scale(1)}}
-    .reel-grad{position:absolute;inset:0;pointer-events:none;
-      background:linear-gradient(to top,rgba(0,0,0,.75) 0%,transparent 40%,rgba(0,0,0,.25) 100%)}
-    .reel-actions{
-      position:absolute;right:12px;bottom:110px;z-index:5;
-      display:flex;flex-direction:column;gap:18px;align-items:center;
+    a { color: inherit; text-decoration: none; }
+
+    /* Top bar */
+    .r-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+      height: calc(56px + env(safe-area-inset-top));
+      padding: env(safe-area-inset-top) 16px 0;
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(to bottom, rgba(0,0,0,.72), transparent);
+      pointer-events: none;
     }
-    .reel-actions button{
-      width:48px;height:48px;border-radius:50%;border:none;
-      background:rgba(0,0,0,.4);backdrop-filter:blur(8px);color:#fff;
-      cursor:pointer;display:flex;align-items:center;justify-content:center;
-      transition:transform .15s;
+    .r-nav a, .r-nav button {
+      pointer-events: auto;
+      border: none; background: rgba(0,0,0,.35);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      color: #fff; width: 40px; height: 40px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; cursor: pointer;
     }
-    .reel-actions button:active{transform:scale(.92)}
-    .reel-actions button svg{width:22px;height:22px;fill:currentColor}
-    .reel-actions button.liked{color:#ff3b5c}
-    .reel-actions span{font-size:.7rem;color:#eee;margin-top:-10px;font-weight:500}
-    .reel-meta{position:absolute;left:16px;right:72px;bottom:36px;z-index:5;color:#fff}
-    .reel-meta h2{margin:0 0 6px;font-size:1rem;font-weight:600;text-shadow:0 2px 8px #000}
-    .empty-reels,.reel-loader{
-      color:#9c978c;text-align:center;padding:80px 24px;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;
+    .r-nav .brand {
+      pointer-events: auto;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 1.15rem; letter-spacing: .02em;
+      background: none; backdrop-filter: none;
+      width: auto; height: auto; border-radius: 0;
+      color: #fff;
     }
-    .spinner{
-      width:36px;height:36px;border:2px solid rgba(255,255,255,.15);
-      border-top-color:#c4a574;border-radius:50%;animation:spin .7s linear infinite;margin-bottom:14px;
+    .r-nav .brand span { color: var(--accent); }
+
+    /* Feed */
+    .reels-shell {
+      position: fixed; inset: 0;
+      background: #000;
     }
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .comment-sheet{
-      position:fixed;left:0;right:0;bottom:0;max-height:55%;z-index:40;
-      background:#121214;border-radius:18px 18px 0 0;padding:16px;
-      display:none;flex-direction:column;box-shadow:0 -12px 40px rgba(0,0,0,.5);
-      animation:sheetUp .25s ease;
+    .reels-feed {
+      height: 100%; width: 100%;
+      overflow-y: scroll; scroll-snap-type: y mandatory;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+      scrollbar-width: none;
     }
-    .comment-sheet.open{display:flex}
-    @keyframes sheetUp{from{transform:translateY(30%)}to{transform:translateY(0)}}
-    .comment-list{flex:1;overflow:auto;margin:10px 0}
-    .comment-list p{margin:0 0 12px;font-size:.9rem;color:#f4f1ea}
-    .comment-list .u{color:#c4a574;font-size:.75rem}
-    .comment-form{display:flex;gap:8px}
-    .comment-form input{
-      flex:1;border-radius:12px;border:1px solid rgba(255,255,255,.1);
-      background:#0a0a0b;color:#fff;padding:12px;font:inherit;
+    .reels-feed::-webkit-scrollbar { display: none; }
+
+    .reel-slide {
+      height: 100%; width: 100%;
+      scroll-snap-align: start; scroll-snap-stop: always;
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+      background: #050505;
+      overflow: hidden;
     }
-    .offline-chip{
-      position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:50;
-      background:#1a1210;border:1px solid rgba(224,122,106,.45);color:#f4f1ea;
-      padding:8px 14px;border-radius:999px;font-size:.8rem;
+    .reel-slide video, .reel-slide img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      background: #000;
+      animation: reelIn .5s cubic-bezier(.22,1,.36,1);
     }
-    .offline-chip.hidden{display:none}
+    @keyframes reelIn {
+      from { opacity: .35; transform: scale(1.04); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .reel-grad {
+      position: absolute; inset: 0; pointer-events: none;
+      background:
+        linear-gradient(to top, rgba(0,0,0,.88) 0%, rgba(0,0,0,.35) 28%, transparent 48%),
+        linear-gradient(to bottom, rgba(0,0,0,.55) 0%, transparent 18%);
+    }
+
+    /* Right actions — TikTok style */
+    .reel-actions {
+      position: absolute;
+      right: 10px;
+      bottom: max(120px, calc(18% + env(safe-area-inset-bottom)));
+      z-index: 8;
+      display: flex; flex-direction: column;
+      gap: 16px; align-items: center;
+    }
+    .act {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .act button {
+      width: 48px; height: 48px; border-radius: 50%;
+      border: 1px solid var(--line);
+      background: var(--glass);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .18s ease, background .18s, color .18s;
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    }
+    .act button:active { transform: scale(.9); }
+    .act button svg { width: 22px; height: 22px; fill: currentColor; }
+    .act button.liked {
+      color: var(--accent-hot);
+      background: rgba(255,59,107,.18);
+      border-color: rgba(255,59,107,.4);
+    }
+    .act button.saved {
+      color: var(--accent);
+      background: rgba(212,180,131,.15);
+      border-color: rgba(212,180,131,.35);
+    }
+    .act span {
+      font-size: .68rem; font-weight: 600;
+      color: rgba(255,255,255,.9);
+      text-shadow: 0 1px 4px #000;
+      min-height: 14px;
+    }
+
+    /* Bottom meta */
+    .reel-meta {
+      position: absolute;
+      left: 16px; right: 72px;
+      bottom: max(28px, env(safe-area-inset-bottom));
+      z-index: 8; color: #fff;
+      padding-bottom: 8px;
+    }
+    .reel-studio {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-bottom: 10px;
+    }
+    .reel-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #8a6a3a);
+      display: flex; align-items: center; justify-content: center;
+      font-family: "Cormorant Garamond", serif;
+      font-size: .95rem; font-weight: 600; color: #1a140c;
+      border: 1.5px solid rgba(255,255,255,.35);
+    }
+    .reel-studio strong {
+      font-size: .88rem; font-weight: 600;
+      letter-spacing: .01em;
+    }
+    .reel-meta h2 {
+      margin: 0 0 6px;
+      font-size: 1.05rem; font-weight: 600;
+      text-shadow: 0 2px 12px rgba(0,0,0,.8);
+      line-height: 1.3;
+    }
+    .reel-meta p {
+      margin: 0;
+      font-size: .86rem; line-height: 1.45;
+      color: rgba(255,255,255,.88);
+      text-shadow: 0 1px 8px rgba(0,0,0,.7);
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+      overflow: hidden; max-width: 92%;
+    }
+    .reel-tag {
+      display: inline-block; margin-top: 8px;
+      font-size: .68rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--accent); font-weight: 600;
+    }
+
+    /* Double-tap heart */
+    .heart-burst {
+      position: absolute; left: 50%; top: 45%;
+      transform: translate(-50%, -50%) scale(0);
+      font-size: 88px; color: var(--accent-hot);
+      pointer-events: none; z-index: 20;
+      text-shadow: 0 8px 40px rgba(0,0,0,.5);
+      opacity: 0;
+    }
+    .heart-burst.pop {
+      animation: heartPop .7s cubic-bezier(.22,1,.36,1) forwards;
+    }
+    @keyframes heartPop {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
+      35% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+      100% { opacity: 0; transform: translate(-50%, -55%) scale(1); }
+    }
+
+    /* Loader / empty */
+    .reel-loader, .empty-reels {
+      height: 100%; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: #9c978c; text-align: center; padding: 40px 24px;
+      gap: 14px;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 2px solid rgba(255,255,255,.12);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-reels h3 {
+      margin: 0; font-family: "Cormorant Garamond", serif;
+      font-size: 1.6rem; font-weight: 500; color: #f5f1ea;
+    }
+    .empty-reels p { margin: 0; max-width: 260px; line-height: 1.5; font-size: .9rem; }
+    .empty-reels a {
+      margin-top: 8px; padding: 12px 22px; border-radius: 999px;
+      background: linear-gradient(145deg, var(--accent), #b8956a);
+      color: #14110d; font-weight: 600; font-size: .85rem;
+    }
+
+    /* Comments sheet */
+    .comments {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+      max-height: 55vh;
+      background: #121214;
+      border-radius: 22px 22px 0 0;
+      border-top: 1px solid var(--line);
+      transform: translateY(110%);
+      transition: transform .35s cubic-bezier(.22,1,.36,1);
+      display: flex; flex-direction: column;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .comments.open { transform: translateY(0); }
+    .comments-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; border-bottom: 1px solid var(--line);
+    }
+    .comments-head h3 { margin: 0; font-size: .95rem; font-weight: 600; }
+    .comments-head button {
+      border: none; background: transparent; color: #aaa; font-size: 1.3rem; cursor: pointer;
+    }
+    .comment-list {
+      flex: 1; overflow-y: auto; padding: 12px 18px;
+      font-size: .88rem; line-height: 1.45;
+    }
+    .comment-list .u { color: var(--accent); font-weight: 600; font-size: .8rem; }
+    .comment-list p { margin: 0 0 12px; color: #ddd; }
+    .comment-form {
+      display: flex; gap: 8px; padding: 12px 16px;
+      border-top: 1px solid var(--line);
+    }
+    .comment-form input {
+      flex: 1; border-radius: 999px; border: 1px solid var(--line);
+      background: #1a1a1c; color: #fff; padding: 12px 16px; font-size: .9rem;
+      outline: none;
+    }
+    .comment-form input:focus { border-color: var(--accent); }
+    .comment-form button {
+      border: none; border-radius: 999px; padding: 0 18px;
+      background: var(--accent); color: #14110d; font-weight: 600; cursor: pointer;
+    }
+
+    /* Progress dots (side) */
+    .reel-progress {
+      position: absolute; right: 6px; top: 50%;
+      transform: translateY(-50%);
+      z-index: 7;
+      display: flex; flex-direction: column; gap: 5px;
+      pointer-events: none;
+    }
+    .reel-progress i {
+      width: 3px; height: 12px; border-radius: 2px;
+      background: rgba(255,255,255,.25);
+    }
+    .reel-progress i.on { background: var(--accent); height: 18px; }
+
+    @media (min-width: 900px) {
+      .reels-shell {
+        max-width: 420px; left: 50%; right: auto;
+        transform: translateX(-50%);
+        border-left: 1px solid #1a1a1a;
+        border-right: 1px solid #1a1a1a;
+      }
+      .r-nav { max-width: 420px; left: 50%; right: auto; transform: translateX(-50%); }
+    }
   </style>
 </head>
 <body class="reels-mode" data-page="reels">
-  <div id="site-nav"></div>
-  <div class="offline-chip hidden" id="offlineChip">You're offline</div>
+  <nav class="r-nav">
+    <a href="/" class="brand">Artist's <span>Studio</span></a>
+    <a href="/portfolio.html" title="Portfolio">◈</a>
+  </nav>
+
   <div class="reels-shell">
     <div class="reels-feed" id="feed">
-      <div class="reel-loader"><div class="spinner"></div><p>Loading reels…</p></div>
+      <div class="reel-loader">
+        <div class="spinner"></div>
+        <p>Loading reels…</p>
+      </div>
     </div>
   </div>
-  <div class="comment-sheet" id="comments">
-    <strong style="color:#fff">Comments</strong>
+
+  <div class="comments" id="comments">
+    <div class="comments-head">
+      <h3>Comments</h3>
+      <button type="button" id="closeComments" aria-label="Close">×</button>
+    </div>
     <div class="comment-list" id="commentList"></div>
     <form class="comment-form" id="commentForm">
-      <input name="body" placeholder="Add a comment…" autocomplete="off" required/>
-      <button class="btn btn-sm" type="submit">Post</button>
+      <input name="body" placeholder="Add a comment…" maxlength="500" autocomplete="off"/>
+      <button type="submit">Post</button>
     </form>
-    <button type="button" class="btn btn-ghost btn-sm" id="closeComments" style="margin-top:10px">Close</button>
   </div>
-  <div id="site-modals"></div>
+
   <script src="/js/api-client.js"></script>
-  <script src="/js/app.js"></script>
   <script src="/js/reels-feed.js"></script>
 </body>
 </html>
