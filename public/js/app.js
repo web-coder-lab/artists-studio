@@ -66,11 +66,14 @@ function navHtml() {
     `<a href="${href}" class="${page === key ? 'active' : ''}" title="${label}" aria-label="${label}">${ico}<span class="nav-label">${label}</span></a>`
   ).join('');
   return `
+  <div class="nav-scrim" id="navScrim" hidden></div>
   <header class="nav">
-    <a class="brand" href="/">Artist's Studio</a>
-    <button type="button" class="nav-toggle" id="navToggle" aria-label="Menu">Menu</button>
+    <a class="brand nav-brand" href="/">Artist's <span>Studio</span></a>
     <nav class="nav-links" id="navLinks">${linkEls}</nav>
     <div class="nav-actions" id="navActions"></div>
+    <button type="button" class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
   </header>`;
 }
 
@@ -380,7 +383,32 @@ async function onContactSubmit(e) {
 }
 
 function bindGlobal() {
-  $('navToggle')?.addEventListener('click', () => $('navLinks')?.classList.toggle('open'));
+  const toggleMenu = (force) => {
+    const links = $('navLinks');
+    const btn = $('navToggle');
+    const scrim = $('navScrim');
+    if (!links || !btn) return;
+    const open = force != null ? force : !links.classList.contains('open');
+    links.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    if (scrim) {
+      scrim.hidden = !open;
+      scrim.classList.toggle('show', open);
+    }
+    document.body.style.overflow = open ? 'hidden' : '';
+  };
+  $('navToggle')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleMenu();
+  });
+  $('navScrim')?.addEventListener('click', () => toggleMenu(false));
+  $('navLinks')?.querySelectorAll('a').forEach((a) => {
+    a.addEventListener('click', () => toggleMenu(false));
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') toggleMenu(false);
+  });
   document.body.addEventListener('click', (e) => {
     const open = e.target.closest('[data-open]');
     if (open) openModal(open.getAttribute('data-open'));
