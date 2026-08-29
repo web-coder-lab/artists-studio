@@ -150,3 +150,20 @@ body.locked .nav-links {
   visibility: hidden;
   pointer-events: none;
 }
+
+/* Contact channels */
+.channel-grid{display:flex;flex-direction:column;gap:12px}
+.channel-card{
+  display:flex;flex-direction:column;gap:4px;
+  padding:18px 20px;border-radius:16px;
+  border:1px solid var(--line);background:var(--bg-soft,rgba(255,255,255,.03));
+  text-decoration:none;color:inherit;transition:.2s ease;
+}
+.channel-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.channel-ico{font-size:.75rem;letter-spacing:.12em;color:var(--accent);font-weight:600}
+.channel-label{font-size:1.15rem;font-weight:500}
+.channel-sub{font-size:.85rem;color:var(--muted)}
+html.open-site body > main,
+html.open-site body > .reels-shell,
+html.open-site .home-grid { visibility: visible !important; }
+body.locked main { visibility: visible !important; pointer-events: auto !important; }

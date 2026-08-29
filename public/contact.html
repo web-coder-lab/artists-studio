@@ -2,57 +2,67 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <meta name="theme-color" content="#0a0a0b"/>
-  <meta name="description" content="Artist's Studio — photography, direction, and private conversation. Portfolio, reels, and a direct line to the studio."/>
-  <meta name="robots" content="index,follow"/>
-  <meta property="og:type" content="website"/>
-  <meta property="og:site_name" content="Artist's Studio"/>
-  <meta property="og:title" content="Artist's Studio"/>
-  <meta property="og:description" content="A quiet space for work that holds attention. Portfolio, reels, and private contact."/>
-  <meta property="og:url" content="https://artists-studio.onrender.com/"/>
-  <meta property="og:image" content="https://artists-studio.onrender.com/og.png"/>
-  <meta name="twitter:card" content="summary_large_image"/>
-  <meta name="twitter:title" content="Artist's Studio"/>
-  <meta name="twitter:description" content="Photography · Direction · Craft"/>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
-
+  <meta name="description" content="Contact Artist's Studio via WhatsApp, Instagram, or Email."/>
   <title>Contact — Artist's Studio</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/css/studio.css"/>
-  <link rel="stylesheet" href="/css/chat.css"/>
-  <script>
-    (function(){
-      try {
-        var t = localStorage.getItem('as_token');
-        if (!t) document.documentElement.classList.add('needs-auth');
-      } catch(e) { document.documentElement.classList.add('needs-auth'); }
-    })();
-  </script>
-  <style>
-    html.needs-auth body > main,
-    html.needs-auth body > .reels-shell,
-    html.needs-auth .home-grid { visibility: hidden !important; }
-  </style>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
 </head>
 <body data-page="contact">
   <div class="grain" aria-hidden="true"></div>
   <div id="site-nav"></div>
-  <main style="padding:12px 12px 28px">
-    <div id="gate" class="page-hero" style="text-align:center;max-width:420px;margin:0 auto">
-      <p class="eyebrow">Contact</p>
-      <h1>Talk to the studio</h1>
-      <p class="lede">Sign in for private chat — or reach out on your preferred channel.</p>
-      <button type="button" class="btn" data-open="login">Sign in</button>
-      <button type="button" class="btn btn-ghost" data-open="register">Join</button>
-      <div id="guestChannels" style="margin-top:28px"></div>
+  <main class="wrap" style="max-width:520px;margin:0 auto;padding:32px 16px 80px">
+    <p class="eyebrow">Connect</p>
+    <h1 style="font-family:Cormorant Garamond,serif;font-weight:500;font-size:2.2rem;margin:8px 0 12px">Get in touch</h1>
+    <p class="muted" style="margin-bottom:28px">Message the studio on WhatsApp, Instagram, or email. No in-app chat.</p>
+    <div id="channels" class="channel-grid">
+      <p class="muted">Loading…</p>
     </div>
-    <div id="chatRoot" class="hidden"></div>
   </main>
   <div id="site-foot"></div>
   <div id="site-modals"></div>
   <script src="/js/api-client.js"></script>
   <script src="/js/app.js"></script>
-  <script src="/js/chat-user.js"></script>
+  <script>
+    (async () => {
+      const root = document.getElementById('channels');
+      try {
+        const data = await (window.StudioAPI ? StudioAPI.api('/socials') : fetch('/api/v1/socials').then(r => r.json()));
+        const s = data.socials || {};
+        const wa = String(s.whatsapp || '').replace(/\D/g, '');
+        const email = s.email || '';
+        const ig = s.instagram || '';
+        const cards = [];
+        if (wa) {
+          cards.push(`<a class="channel-card" href="https://wa.me/${wa}" target="_blank" rel="noopener">
+            <span class="channel-ico">WA</span>
+            <span class="channel-label">WhatsApp</span>
+            <span class="channel-sub">Chat on WhatsApp</span>
+          </a>`);
+        }
+        if (ig) {
+          cards.push(`<a class="channel-card" href="${ig.replace(/"/g,'')}" target="_blank" rel="noopener">
+            <span class="channel-ico">IG</span>
+            <span class="channel-label">Instagram</span>
+            <span class="channel-sub">Open profile</span>
+          </a>`);
+        }
+        if (email) {
+          cards.push(`<a class="channel-card" href="mailto:${email.replace(/"/g,'')}" target="_blank" rel="noopener">
+            <span class="channel-ico">@</span>
+            <span class="channel-label">Gmail</span>
+            <span class="channel-sub">${email.replace(/</g,'')}</span>
+          </a>`);
+        }
+        root.innerHTML = cards.length ? cards.join('') : '<p class="muted">Channels not configured yet.</p>';
+      } catch (e) {
+        root.innerHTML = '<p class="muted">Could not load channels.</p>';
+      }
+    })();
+  </script>
 </body>
 </html>

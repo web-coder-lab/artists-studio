@@ -338,24 +338,24 @@ app.get('/api/v1/health', (_req, res) => {
 });
 
 // ——— Public CMS ———
-app.get('/api/v1/site', auth, (req, res) => {
+app.get('/api/v1/site', authOptional, (req, res) => {
   const db = load();
   res.json({ site: db.site, pages: db.pages, theme: db.theme || {} });
 });
 
-app.get('/api/v1/pages/:slug', auth, (req, res) => {
+app.get('/api/v1/pages/:slug', authOptional, (req, res) => {
   const db = load();
   const page = db.pages[req.params.slug];
   if (!page || !page.published) return res.status(404).json({ error: 'Page not found' });
   res.json({ page, site: db.site });
 });
 
-app.get('/api/v1/portfolio', auth, (req, res) => {
+app.get('/api/v1/portfolio', authOptional, (req, res) => {
   const db = load();
   res.json({ items: db.portfolio || [] });
 });
 
-app.get('/api/v1/reels', auth, (req, res) => {
+app.get('/api/v1/reels', authOptional, (req, res) => {
   const db = load();
   const items = (db.reels || []).map((r) => {
     const likes = (db.reel_likes || []).filter((x) => x.reel_id === r.id).length;
@@ -376,14 +376,14 @@ app.get('/api/v1/socials', authOptional, (req, res) => {
   res.json({ socials: db.socials || {} });
 });
 
-app.get('/api/v1/policies/:slug', auth, (req, res) => {
+app.get('/api/v1/policies/:slug', authOptional, (req, res) => {
   const db = load();
   const pol = (db.policies || {})[req.params.slug];
   if (!pol) return res.status(404).json({ error: 'Policy not found' });
   res.json({ policy: { slug: req.params.slug, ...pol } });
 });
 
-app.get('/api/v1/policies', auth, (req, res) => {
+app.get('/api/v1/policies', authOptional, (req, res) => {
   const db = load();
   res.json({ policies: db.policies || {} });
 });

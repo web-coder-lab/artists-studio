@@ -257,7 +257,7 @@ async function renderPage() {
       <div class="svc-grid">${(site.services || []).map((x) => `
         <article class="svc-card"><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.text)}</p></article>`).join('')}</div>`;
   } else if (page === 'contact') {
-    // Contact page is the chat UI (chat-user.js). No form here.
+    // Channels rendered in contact.html
     return;
   } else if (page === 'policies') {
     const pol = await api('/policies');
@@ -276,10 +276,10 @@ async function renderPage() {
         <p class="muted">@${escapeHtml(currentUser.username)}</p></div>
         <div class="dash-grid">
           <article class="tile"><h3>Profile</h3><p>${escapeHtml(currentUser.name)} · @${escapeHtml(currentUser.username)}</p></article>
-          <article class="tile"><h3>Messages</h3><p><a href="/contact.html" style="color:var(--accent)">Open chat with artist</a></p></article>
+          <article class="tile"><h3>Contact</h3><p><a href="/contact.html" style="color:var(--accent)">WhatsApp · Instagram · Email</a></p></article>
           <article class="tile"><h3>Calls</h3><p class="muted">Voice & video — coming soon.</p></article>
         </div>
-        <p style="margin:8px 0 16px"><a class="btn" href="/contact.html">Contact Artist</a></p>
+        <p style="margin:8px 0 16px"><a class="btn" href="/contact.html">WhatsApp · Instagram · Email</a></p>
         <button type="button" class="btn btn-ghost" id="btnLogout">Sign out</button>
         <hr style="border:none;border-top:1px solid var(--line);margin:24px 0"/>
         <h2 style="font-size:1.1rem">Profile</h2>
@@ -442,29 +442,18 @@ async function boot() {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
   } catch (_) {}
-
-  document.body.classList.add('booting');
+  document.body.classList.remove('booting', 'locked');
+  document.getElementById('authWall')?.remove();
+  document.documentElement.classList.remove('needs-auth');
   const nav = $('site-nav');
   const foot = $('site-foot');
   const modals = $('site-modals');
   if (nav) nav.outerHTML = navHtml();
   if (foot) foot.outerHTML = footHtml();
-  if (modals) modals.innerHTML = modalsHtml();
+  if (modals) modals.innerHTML = ''; // no login/register modals
   bindGlobal();
-  await refreshSession();
-  const loggedIn = !!(token() || currentUser);
-  if (!loggedIn) {
-    document.body.classList.remove('booting');
-    document.body.classList.add('locked');
-    showAuthWall();
-    // hide page content under wall
-    document.querySelectorAll('main, .home-grid, #page-root, #chatRoot, #feed, .reels-shell').forEach((el) => {
-      el.style.visibility = 'hidden';
-    });
-    return;
-  }
-  document.body.classList.remove('booting', 'locked');
-  document.getElementById('authWall')?.remove();
+  // optional session — never required for browsing
+  try { await refreshSession(); } catch (_) {}
   document.querySelectorAll('main, .home-grid, #page-root, #chatRoot, #feed, .reels-shell').forEach((el) => {
     el.style.visibility = '';
   });
@@ -472,25 +461,9 @@ async function boot() {
 }
 
 function showAuthWall() {
-  document.body.classList.add('locked');
-  let wall = document.getElementById('authWall');
-  if (!wall) {
-    wall = document.createElement('div');
-    wall.id = 'authWall';
-    wall.style.cssText = 'position:fixed;inset:0;z-index:90;background:#0a0a0b;display:flex;align-items:center;justify-content:center;padding:24px';
-    wall.innerHTML = '<div style="max-width:400px;text-align:center;width:100%">' +
-      '<p style="color:#c4a574;letter-spacing:.14em;font-size:.72rem;text-transform:uppercase">Artist\'s Studio</p>' +
-      '<h1 style="font-family:Cormorant Garamond,Georgia,serif;font-weight:500;font-size:2rem;margin:8px 0 12px;color:#f4f1ea">Welcome</h1>' +
-      '<p style="color:#9c978c;margin:0 0 22px">Sign in or join first — then the studio opens.</p>' +
-      '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
-      '<button type="button" class="btn" data-open="login">Sign in</button>' +
-      '<button type="button" class="btn btn-ghost" data-open="register">Join</button></div></div>';
-    document.body.appendChild(wall);
-  }
-  wall.style.display = 'flex';
-  renderNavAuth();
-  // Always open Sign in first (Join available in modal switch)
-  setTimeout(() => { try { openModal('login'); } catch (_) {} }, 80);
+  /* disabled — site is public; contact via WA / IG / Email */
+  document.getElementById('authWall')?.remove();
+  document.body.classList.remove('locked');
 }
 
 boot();
