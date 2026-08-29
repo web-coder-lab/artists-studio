@@ -30,22 +30,23 @@
     });
   }
 
-  /* Clean stroke icons */
   const I = {
     heart: '<svg class="ico" viewBox="0 0 24 24"><path d="M12 20s-7-4.35-9.2-8A5.2 5.2 0 0 1 12 6.2 5.2 5.2 0 0 1 21.2 12c-2.2 3.65-9.2 8-9.2 8z"/></svg>',
     heartFill: '<svg class="ico ico-fill" viewBox="0 0 24 24"><path d="M12 20s-7-4.35-9.2-8A5.2 5.2 0 0 1 12 6.2 5.2 5.2 0 0 1 21.2 12c-2.2 3.65-9.2 8-9.2 8z"/></svg>',
     comment: '<svg class="ico" viewBox="0 0 24 24"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4.5 3.2V17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>',
     bookmark: '<svg class="ico" viewBox="0 0 24 24"><path d="M7 4h10a1 1 0 0 1 1 1v15l-6-3.5L6 20V5a1 1 0 0 1 1-1z"/></svg>',
     share: '<svg class="ico" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 13.2 7.5 4.1M15.7 6.7l-7.5 4.1"/></svg>',
-    volume: '<svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6L7 10H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 7a7 7 0 0 1 0 10"/></svg>',
-    mute: '<svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6L7 10H4z"/><path d="m16 10 5 5M21 10l-5 5"/></svg>',
+    play: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5L8 5.5z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
+    volume: '<svg viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6L7 10H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 7a7 7 0 0 1 0 10"/></svg>',
+    mute: '<svg viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6L7 10H4z"/><path d="m16 10 5 5M21 10l-5 5"/></svg>',
     burst: '<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.35-9.2-8A5.2 5.2 0 0 1 12 6.2 5.2 5.2 0 0 1 21.2 12c-2.2 3.65-9.2 8-9.2 8z"/></svg>'
   };
 
   function mediaUrl(url) {
     if (!url) return '';
     if (url.startsWith('http') || url.startsWith('/')) return url;
-    return '/' + url.replace(/^\//, '');
+    return '/' + String(url).replace(/^\//, '');
   }
 
   function isVideo(r) {
@@ -56,15 +57,24 @@
   function slideHtml(r) {
     const src = mediaUrl(r.url);
     const thumb = mediaUrl(r.thumb || r.url);
-    const media = isVideo(r)
-      ? `<video src="${escape(src)}" playsinline loop muted preload="metadata"></video>`
+    const video = isVideo(r);
+    const media = video
+      ? `<video src="${escape(src)}" playsinline loop muted preload="auto"></video>`
       : `<img src="${escape(thumb)}" alt="${escape(r.title || 'Reel')}" loading="lazy"/>`;
     return `
-      <article class="slide" data-id="${r.id}" id="reel-${r.id}">
+      <article class="slide" data-id="${r.id}" id="reel-${r.id}" data-video="${video ? '1' : '0'}">
         ${media}
         <div class="veil"></div>
         <div class="burst">${I.burst}</div>
-        <div class="mute-pill" data-mute-pill>${I.mute}<span>Muted</span></div>
+        <!-- Instagram-style center controls: speaker ABOVE play/pause -->
+        <div class="center-ctrl" data-ctrl hidden>
+          <button type="button" class="ctrl-speaker" data-speaker aria-label="Mute">
+            ${I.mute}
+          </button>
+          <button type="button" class="ctrl-play" data-playpause aria-label="Play">
+            ${I.play}
+          </button>
+        </div>
         <div class="rail">
           <div class="rail-item">
             <button type="button" class="rail-btn" data-like="${r.id}" aria-label="Like">${I.heart}</button>
@@ -95,13 +105,27 @@
       </article>`;
   }
 
-  function showMute(slide, muted) {
-    const pill = slide.querySelector('[data-mute-pill]');
-    if (!pill) return;
-    pill.innerHTML = (muted ? I.mute : I.volume) + '<span>' + (muted ? 'Muted' : 'Sound on') + '</span>';
-    pill.classList.add('show');
-    clearTimeout(pill._t);
-    pill._t = setTimeout(() => pill.classList.remove('show'), 1200);
+  function syncCtrl(slide) {
+    const video = slide.querySelector('video');
+    const ctrl = slide.querySelector('[data-ctrl]');
+    const playBtn = slide.querySelector('[data-playpause]');
+    const spkBtn = slide.querySelector('[data-speaker]');
+    if (!video || !ctrl || !playBtn || !spkBtn) return;
+
+    if (video.paused) {
+      ctrl.hidden = false;
+      ctrl.classList.add('show');
+      playBtn.innerHTML = I.play;
+      playBtn.setAttribute('aria-label', 'Play');
+    } else {
+      // playing — hide center after brief moment unless user just paused
+      playBtn.innerHTML = I.pause;
+      playBtn.setAttribute('aria-label', 'Pause');
+      ctrl.hidden = true;
+      ctrl.classList.remove('show');
+    }
+    spkBtn.innerHTML = video.muted ? I.mute : I.volume;
+    spkBtn.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
   }
 
   function playVisible() {
@@ -111,10 +135,19 @@
       if (!video) return;
       const top = slide.offsetTop;
       const bottom = top + slide.offsetHeight;
-      if (mid >= top && mid <= bottom) {
-        video.play().catch(() => {});
+      const onScreen = mid >= top && mid <= bottom;
+      if (onScreen) {
+        // Instagram: autoplay loop when in view
+        video.loop = true;
+        if (video.paused && !slide.dataset.userPaused) {
+          video.muted = true; // autoplay policy
+          video.play().then(() => syncCtrl(slide)).catch(() => syncCtrl(slide));
+        } else {
+          syncCtrl(slide);
+        }
       } else {
         video.pause();
+        syncCtrl(slide);
       }
     });
   }
@@ -127,12 +160,23 @@
         feed.innerHTML = `
           <div class="state">
             <h3>No reels yet</h3>
-            <p>New vertical work will appear here.</p>
+            <p>Upload from Admin app — they will appear here.</p>
             <a href="/portfolio.html">View portfolio</a>
           </div>`;
         return;
       }
       feed.innerHTML = items.map(slideHtml).join('');
+      // wire video events
+      feed.querySelectorAll('.slide video').forEach((video) => {
+        video.loop = true;
+        video.addEventListener('play', () => syncCtrl(video.closest('.slide')));
+        video.addEventListener('pause', () => syncCtrl(video.closest('.slide')));
+        video.addEventListener('ended', () => {
+          // loop attribute handles repeat; fallback:
+          video.currentTime = 0;
+          video.play().catch(() => {});
+        });
+      });
       playVisible();
       if (location.hash.startsWith('#reel-')) {
         const el = document.getElementById(location.hash.slice(1));
@@ -150,14 +194,47 @@
 
   feed.addEventListener('scroll', () => {
     clearTimeout(feed._t);
-    feed._t = setTimeout(playVisible, 60);
+    feed._t = setTimeout(playVisible, 50);
   }, { passive: true });
 
   feed.addEventListener('click', async (e) => {
     const slide = e.target.closest('.slide');
-    if (slide && !e.target.closest('button') && !e.target.closest('a')) {
+    const speaker = e.target.closest('[data-speaker]');
+    const playpause = e.target.closest('[data-playpause]');
+
+    // Speaker — mute / unmute (does not toggle play)
+    if (speaker && slide) {
+      e.stopPropagation();
+      const video = slide.querySelector('video');
+      if (video) {
+        video.muted = !video.muted;
+        syncCtrl(slide);
+        if (!video.paused) video.play().catch(() => {});
+      }
+      return;
+    }
+
+    // Explicit play/pause button
+    if (playpause && slide) {
+      e.stopPropagation();
+      const video = slide.querySelector('video');
+      if (video) {
+        if (video.paused) {
+          delete slide.dataset.userPaused;
+          video.play().then(() => syncCtrl(slide)).catch(() => syncCtrl(slide));
+        } else {
+          slide.dataset.userPaused = '1';
+          video.pause();
+          syncCtrl(slide);
+        }
+      }
+      return;
+    }
+
+    // Double-tap like / single-tap pause-play on media
+    if (slide && !e.target.closest('button') && !e.target.closest('a') && !e.target.closest('.rail')) {
       const now = Date.now();
-      if (now - lastTap < 300) {
+      if (now - lastTap < 280) {
         const burst = slide.querySelector('.burst');
         if (burst) {
           burst.classList.remove('pop');
@@ -170,12 +247,19 @@
         return;
       }
       lastTap = now;
+
       const video = slide.querySelector('video');
       if (video) {
-        video.muted = !video.muted;
-        showMute(slide, video.muted);
-        video.play().catch(() => {});
+        if (video.paused) {
+          delete slide.dataset.userPaused;
+          video.play().then(() => syncCtrl(slide)).catch(() => syncCtrl(slide));
+        } else {
+          slide.dataset.userPaused = '1';
+          video.pause();
+          syncCtrl(slide);
+        }
       }
+      return;
     }
 
     const like = e.target.closest('[data-like]');
@@ -230,6 +314,7 @@
   async function openComments(id) {
     const list = document.getElementById('commentList');
     const sheet = document.getElementById('comments');
+    if (!list || !sheet) return;
     try {
       const data = await api('/reels/' + id + '/comments');
       list.innerHTML = (data.comments || []).map((c) =>
@@ -241,24 +326,27 @@
     sheet.classList.add('on');
   }
 
-  document.getElementById('closeComments').onclick = () =>
-    document.getElementById('comments').classList.remove('on');
+  const closeBtn = document.getElementById('closeComments');
+  if (closeBtn) closeBtn.onclick = () => document.getElementById('comments').classList.remove('on');
 
-  document.getElementById('commentForm').onsubmit = async (e) => {
-    e.preventDefault();
-    if (!activeReelId) return;
-    const body = new FormData(e.target).get('body');
-    if (!body || !String(body).trim()) return;
-    try {
-      await api('/reels/' + activeReelId + '/comments', { method: 'POST', body: { body } });
-      e.target.reset();
-      openComments(activeReelId);
-      const el = document.querySelector('[data-cc="' + activeReelId + '"]');
-      if (el) el.textContent = String((+el.textContent || 0) + 1);
-    } catch (err) {
-      alert(err.message || 'Could not post');
-    }
-  };
+  const form = document.getElementById('commentForm');
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      if (!activeReelId) return;
+      const body = new FormData(e.target).get('body');
+      if (!body || !String(body).trim()) return;
+      try {
+        await api('/reels/' + activeReelId + '/comments', { method: 'POST', body: { body } });
+        e.target.reset();
+        openComments(activeReelId);
+        const el = document.querySelector('[data-cc="' + activeReelId + '"]');
+        if (el) el.textContent = String((+el.textContent || 0) + 1);
+      } catch (err) {
+        alert(err.message || 'Could not post');
+      }
+    };
+  }
 
   load();
 })();
