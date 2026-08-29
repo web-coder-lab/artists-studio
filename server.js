@@ -333,6 +333,19 @@ function persistUserAccount(db, user) {
   }
 }
 
+function nextMediaId(db, key, list) {
+  const arr = list || [];
+  let max = 0;
+  for (const x of arr) {
+    const n = Number(x && x.id) || 0;
+    if (n > max) max = n;
+  }
+  if (!db._seq || typeof db._seq !== 'object') db._seq = {};
+  const cur = Math.max(Number(db._seq[key]) || 0, max);
+  db._seq[key] = cur + 1;
+  return db._seq[key];
+}
+
 function isAdminRole(role) {
   return role === 'admin' || role === 'superadmin';
 }
@@ -949,7 +962,30 @@ app.get('/api/v1/admin/portfolio', auth, adminOnly, (req, res) => {
 
 app.get('/api/v1/admin/reels', auth, adminOnly, (req, res) => {
   const db = load();
-  res.json({ items: db.reels || [] });
+  const seen = new Set();
+  let max = 0;
+  let changed = false;
+  const items = (db.reels || []).map((r, i) => {
+    let id = Number(r && r.id) || 0;
+    if (!id || seen.has(id)) {
+      id = max + 1;
+      changed = true;
+    }
+    seen.add(id);
+    if (id > max) max = id;
+    if (r && r.id !== id) {
+      r = Object.assign({}, r, { id });
+      changed = true;
+    }
+    return r;
+  });
+  if (changed) {
+    db.reels = items;
+    if (!db._seq) db._seq = {};
+    db._seq.reels = max;
+    try { save(db); } catch (_) {}
+  }
+  res.json({ items });
 });
 
 app.patch('/api/v1/admin/reels/:id', auth, adminOnly, (req, res) => {
@@ -1261,8 +1297,8 @@ app.delete('/api/v1/admin/portfolio/:id', auth, adminOnly, (req, res) => {
 
 app.post('/api/v1/admin/reels', auth, adminOnly, (req, res) => {
   const db = load();
-  if (db._seq.reels == null) db._seq.reels = (db.reels || []).length;
-  const id = ++db._seq.reels;
+  db.reels = db.reels || [];
+  const id = nextMediaId(db, 'reels', db.reels);
   const item = {
     id,
     title: String(req.body?.title || 'Reel').trim(),
@@ -1386,8 +1422,8 @@ app.post('/api/v1/admin/portfolio/upload', auth, adminOnly, (req, res, next) => 
   }
   if (!req.file) return res.status(400).json({ error: 'Image file required' });
   const db = load();
-  if (db._seq.portfolio == null) db._seq.portfolio = (db.portfolio || []).length;
-  const id = ++db._seq.portfolio;
+  db.portfolio = db.portfolio || [];
+  const id = nextMediaId(db, 'portfolio', db.portfolio);
   const item = {
     id,
     title: String(req.body?.title || 'Untitled').trim(),
@@ -1421,8 +1457,8 @@ app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
   }
   if (!req.file) return res.status(400).json({ error: 'Video/image file required — field name must be file' });
   const db = load();
-  if (db._seq.reels == null) db._seq.reels = (db.reels || []).length;
-  const id = ++db._seq.reels;
+  db.reels = db.reels || [];
+  const id = nextMediaId(db, 'reels', db.reels);
   const name = (req.file.originalname || req.file.filename || '').toLowerCase();
   const mime = (req.file.mimetype || '').toLowerCase();
   const isVideo = mime.startsWith('video/') || /\.(mp4|webm|mov|m4v|3gp|mkv|avi)$/i.test(name) || /\.(mp4|webm|mov|m4v|3gp|mkv|avi)$/i.test(req.file.filename || '');

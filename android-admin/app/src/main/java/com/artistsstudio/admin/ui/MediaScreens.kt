@@ -7,7 +7,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -20,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import com.artistsstudio.admin.data.ApiClient
 import com.artistsstudio.admin.ui.theme.*
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -42,18 +42,30 @@ fun MediaHub(api: ApiClient) {
     }
 }
 
+private fun jsonList(arr: JSONArray): List<JSONObject> {
+    val out = ArrayList<JSONObject>(arr.length())
+    for (i in 0 until arr.length()) {
+        val o = arr.optJSONObject(i) ?: continue
+        out.add(o)
+    }
+    return out
+}
+
 @Composable
 fun PortfolioList(api: ApiClient) {
     var items by remember { mutableStateOf(listOf<JSONObject>()) }
     var msg by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
     fun load() {
         scope.launch {
+            loading = true
             runCatching {
-                val arr = api.portfolio()
-                items = (0 until arr.length()).map { arr.getJSONObject(it) }
+                items = jsonList(api.portfolio())
+                msg = null
             }.onFailure { msg = it.message }
+            loading = false
         }
     }
     LaunchedEffect(Unit) { load() }
@@ -63,9 +75,17 @@ fun PortfolioList(api: ApiClient) {
             Text("Portfolio", color = TextC, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             TextButton(onClick = { load() }) { Text("Refresh", color = Accent) }
         }
+        if (loading) {
+            LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 8.dp), color = Accent, trackColor = Line)
+        }
         msg?.let { Text(it, color = Danger, fontSize = 12.sp) }
+        if (!loading && items.isEmpty() && msg == null) {
+            Text("No photos yet", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 24.dp))
+        }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
-            items(items, key = { it.optInt("id") }) { item ->
+            items(items.size) { index ->
+                val item = items[index]
+                val id = item.optInt("id", index + 1)
                 Card(colors = CardDefaults.cardColors(containerColor = CardBg), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
@@ -75,7 +95,7 @@ fun PortfolioList(api: ApiClient) {
                         TextButton(onClick = {
                             scope.launch {
                                 runCatching {
-                                    api.deletePortfolio(item.optInt("id"))
+                                    api.deletePortfolio(id)
                                     msg = "Deleted"
                                     load()
                                 }.onFailure { msg = it.message }
@@ -92,14 +112,18 @@ fun PortfolioList(api: ApiClient) {
 fun ReelsList(api: ApiClient) {
     var items by remember { mutableStateOf(listOf<JSONObject>()) }
     var msg by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
     fun load() {
         scope.launch {
+            loading = true
             runCatching {
-                val arr = api.reels()
-                items = (0 until arr.length()).map { arr.getJSONObject(it) }
+                // Unique by index — never crash on duplicate server ids
+                items = jsonList(api.reels())
+                msg = null
             }.onFailure { msg = it.message }
+            loading = false
         }
     }
     LaunchedEffect(Unit) { load() }
@@ -109,29 +133,42 @@ fun ReelsList(api: ApiClient) {
             Text("Reels", color = TextC, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             TextButton(onClick = { load() }) { Text("Refresh", color = Accent) }
         }
+        if (loading) {
+            LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 8.dp), color = Accent, trackColor = Line)
+        }
         msg?.let { Text(it, color = Danger, fontSize = 12.sp) }
+        if (!loading && items.isEmpty() && msg == null) {
+            Text("No reels yet — use Upload tab", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 24.dp))
+        }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
-            items(items, key = { it.optInt("id") }) { item ->
+            // key by index — safe even if API returns duplicate ids
+            items(items.size) { index ->
+                val item = items[index]
+                val id = item.optInt("id", -1)
+                val title = item.optString("title", "Reel")
+                val desc = item.optString("description", item.optString("caption"))
+                val mediaType = item.optString("media_type", "video")
+                val likes = item.optInt("likes", 0)
                 Card(colors = CardDefaults.cardColors(containerColor = CardBg), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
-                            Text(item.optString("title", "Reel"), color = TextC, fontSize = 15.sp)
-                            Text(item.optString("description"), color = Muted, fontSize = 12.sp, maxLines = 2)
-                            Text(
-                                "${item.optString("media_type")} · ♥ ${item.optInt("likes")}",
-                                color = Muted,
-                                fontSize = 11.sp
-                            )
-                        }
-                        TextButton(onClick = {
-                            scope.launch {
-                                runCatching {
-                                    api.deleteReel(item.optInt("id"))
-                                    msg = "Deleted"
-                                    load()
-                                }.onFailure { msg = it.message }
+                            Text(title, color = TextC, fontSize = 15.sp)
+                            if (desc.isNotBlank()) {
+                                Text(desc, color = Muted, fontSize = 12.sp, maxLines = 2)
                             }
-                        }) { Text("Delete", color = Danger) }
+                            Text("$mediaType · ♥ $likes · #$id", color = Muted, fontSize = 11.sp)
+                        }
+                        if (id > 0) {
+                            TextButton(onClick = {
+                                scope.launch {
+                                    runCatching {
+                                        api.deleteReel(id)
+                                        msg = "Deleted"
+                                        load()
+                                    }.onFailure { msg = it.message }
+                                }
+                            }) { Text("Delete", color = Danger) }
+                        }
                     }
                 }
             }
@@ -300,14 +337,16 @@ private fun guessMime(name: String, video: Boolean): String {
 private fun queryMeta(ctx: Context, uri: Uri): Pair<String, Long> {
     var name = "upload"
     var size = 0L
-    ctx.contentResolver.query(uri, null, null, null, null)?.use { c ->
-        val ni = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-        val si = c.getColumnIndex(OpenableColumns.SIZE)
-        if (c.moveToFirst()) {
-            if (ni >= 0) name = c.getString(ni) ?: name
-            if (si >= 0) size = c.getLong(si)
+    try {
+        ctx.contentResolver.query(uri, null, null, null, null)?.use { c ->
+            val ni = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            val si = c.getColumnIndex(OpenableColumns.SIZE)
+            if (c.moveToFirst()) {
+                if (ni >= 0) name = c.getString(ni) ?: name
+                if (si >= 0 && !c.isNull(si)) size = c.getLong(si)
+            }
         }
-    }
+    } catch (_: Exception) { }
     return name to size
 }
 
