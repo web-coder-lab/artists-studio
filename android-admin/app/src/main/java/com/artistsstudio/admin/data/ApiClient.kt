@@ -40,6 +40,8 @@ class ApiClient(private val session: SessionStore) {
     suspend fun patchContact(id: Int, status: String) =
         patch("admin/contacts/$id", JSONObject().put("status", status))
 
+    suspend fun getContent() = get("admin/content")
+    suspend fun putContent(body: JSONObject) = put("admin/content", body)
     suspend fun getSite() = get("admin/site")
     suspend fun putSite(site: JSONObject) = put("admin/site", JSONObject().put("site", site))
     suspend fun getSocials() = get("admin/socials")

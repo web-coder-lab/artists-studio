@@ -3,6 +3,15 @@ const API = '/api/v1';
 const page = document.body.dataset.page || 'home';
 
 let mode = 'login';
+let siteCache = null;
+function copyOf(section, key, fallback) {
+  try {
+    const c = siteCache && siteCache.copy && siteCache.copy[section];
+    if (c && c[key] != null && String(c[key]).length) return String(c[key]);
+  } catch (_) {}
+  return fallback;
+}
+
 let waUrl = null;
 let currentUser = null;
 let cache = {};
@@ -162,12 +171,17 @@ async function renderPage() {
   document.title = (site.brand || "Artist's Studio") + (page === 'home' ? '' : ' — ' + page.charAt(0).toUpperCase() + page.slice(1));
 
   if (page === 'home') {
+    applySiteCopy(site);
     if ($('tagline')) $('tagline').textContent = site.tagline || '';
     if ($('heroTitle')) $('heroTitle').textContent = site.hero_title || '';
     if ($('heroSubtitle')) $('heroSubtitle').textContent = site.hero_subtitle || '';
     if ($('profileName')) $('profileName').textContent = site.profile_name || '';
     if ($('profileRole')) $('profileRole').textContent = site.profile_role || '';
     if ($('profileBio')) $('profileBio').textContent = site.profile_bio || '';
+    const work = document.querySelector('.home-cta a.btn:not(.btn-ghost)');
+    const contact = document.querySelector('.home-cta a.btn-ghost');
+    if (work) work.textContent = copyOf('home', 'cta_work', 'View work');
+    if (contact) contact.textContent = copyOf('home', 'cta_contact', 'Contact');
     return;
   }
 
@@ -175,13 +189,13 @@ async function renderPage() {
   if (!root) return;
 
   if (page === 'about') {
-    root.innerHTML = `<div class="page-hero"><p class="eyebrow">About</p><h1>The studio</h1>
-      <p class="prose">${escapeHtml(site.about || '')}</p></div>`;
+    root.innerHTML = `<div class="page-hero"><p class="eyebrow">${escapeHtml(copyOf('about','eyebrow','Studio'))}</p><h1>${escapeHtml(copyOf('about','title','About'))}</h1>
+      <p class="prose">${escapeHtml(copyOf('about','body', site.about || ''))}</p></div>`;
   } else if (page === 'portfolio') {
     const folio = await api('/portfolio');
     const items = folio.items || [];
-    root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:8px"><p class="eyebrow">Selected work</p><h1>Portfolio</h1></div>
-      ${items.length ? '' : '<p class="muted" style="text-align:center;padding:40px">No work published yet.</p>'}
+    root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:8px"><p class="eyebrow">${escapeHtml(copyOf('portfolio','eyebrow','Selected work'))}</p><h1>${escapeHtml(copyOf('portfolio','title','Portfolio'))}</h1></div>
+      ${items.length ? '' : `<p class="muted" style="text-align:center;padding:40px">${escapeHtml(copyOf('portfolio','empty','No work published yet.'))}</p>`}
       <div class="folio-grid">${items.map((it, i) => `
         <article class="folio-card" data-lightbox="${i}" role="button" tabindex="0">
           <img src="${escapeHtml(it.image || it.url || '')}" alt="${escapeHtml(it.title || '')}" loading="lazy"/>
@@ -257,13 +271,13 @@ async function renderPage() {
     });
   } else if (page === 'reels') {
     const reels = await api('/reels');
-    root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:8px"><p class="eyebrow">Motion</p><h1>Reels</h1></div>
+    root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:8px"><p class="eyebrow">${escapeHtml(copyOf('reels','eyebrow','Motion'))}</p><h1>${escapeHtml(copyOf('reels','title','Reels'))}</h1></div>
       <div class="reels-row">${(reels.items || []).map((r) => `
         <a class="reel-card" href="${escapeHtml(r.url || '#')}">
           <img src="${escapeHtml(r.thumb)}" alt="" loading="lazy"/><span>${escapeHtml(r.title)}</span>
         </a>`).join('')}</div>`;
   } else if (page === 'services') {
-    root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:8px"><p class="eyebrow">Offerings</p><h1>Services</h1></div>
+    root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:8px"><p class="eyebrow">${escapeHtml(copyOf('services','eyebrow','Offerings'))}</p><h1>${escapeHtml(copyOf('services','title','Services'))}</h1></div>
       <div class="svc-grid">${(site.services || []).map((x) => `
         <article class="svc-card"><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.text)}</p></article>`).join('')}</div>`;
   } else if (page === 'contact') {
@@ -272,7 +286,7 @@ async function renderPage() {
   } else if (page === 'policies') {
     const pol = await api('/policies');
     const policies = pol.policies || {};
-    root.innerHTML = `<div class="page-hero"><p class="eyebrow">Legal</p><h1>Policies</h1></div>
+    root.innerHTML = `<div class="page-hero"><p class="eyebrow">${escapeHtml(copyOf('policies','eyebrow','Legal'))}</p><h1>${escapeHtml(copyOf('policies','title','Policies'))}</h1></div>
       <div class="pol-list">${Object.keys(policies).map((k) => `
         <article><h3>${escapeHtml(policies[k].title || k)}</h3><p>${escapeHtml(policies[k].body || '')}</p></article>`).join('')}</div>`;
   } else if (page === 'account') {
@@ -445,6 +459,32 @@ function toggleTheme() {
   applyTheme(cur === 'light' ? 'dark' : 'light');
 }
 
+function applySiteCopy(site) {
+  siteCache = site || {};
+  const brand = siteCache.brand || "Artist's Studio";
+  const brandEl = document.querySelector('.nav-brand');
+  if (brandEl) brandEl.innerHTML = escapeHtml(brand).replace("Studio", "<span>Studio</span>");
+  // nav link labels
+  const map = [
+    ['home', 'Home'], ['about', 'About'], ['portfolio', 'Work'], ['reels', 'Reels'],
+    ['services', 'Services'], ['contact', 'Contact'], ['policies', 'Policies']
+  ];
+  map.forEach(([slug, fb]) => {
+    const a = document.querySelector(`.nav-links a[href$="${slug === 'home' ? 'index.html' : slug + '.html'}"]`);
+    if (a) {
+      const ico = a.querySelector('.nav-ico');
+      const label = copyOf('nav', slug, fb);
+      a.innerHTML = (ico ? ico.outerHTML + ' ' : '') + escapeHtml(label);
+    }
+  });
+  // footer
+  const foot = document.querySelector('.foot-brand, .foot span, .foot');
+  const fl = copyOf('footer', 'line', '');
+  if (fl && document.getElementById('footLine')) {
+    document.getElementById('footLine').textContent = fl;
+  }
+}
+
 async function boot() {
   initTheme();
   try {
@@ -464,6 +504,10 @@ async function boot() {
   bindGlobal();
   // optional session — never required for browsing
   try { await refreshSession(); } catch (_) {}
+  try {
+    const data = await api('/site');
+    applySiteCopy(data.site || data);
+  } catch (_) {}
   document.querySelectorAll('main, .home-grid, #page-root, #chatRoot, #feed, .reels-shell').forEach((el) => {
     el.style.visibility = '';
   });

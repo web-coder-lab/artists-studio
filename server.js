@@ -951,7 +951,7 @@ app.get('/api/v1/admin/catalog', auth, adminOnly, (_req, res) => {
       dashboard: ['GET /admin/dashboard', 'GET /admin/db-status', 'GET /admin/notifications'],
       chat: ['GET /conversations', 'GET /conversations/:id/messages', 'POST /conversations/:id/messages'],
       contacts: ['GET /admin/contacts', 'GET /admin/contacts/:id', 'PATCH /admin/contacts/:id'],
-      cms: ['GET|PUT /admin/site', 'GET|PUT /admin/socials', 'GET|PUT /admin/theme', 'GET|PUT /admin/pages', 'GET|PUT /admin/policies'],
+      cms: ['GET|PUT /admin/content', 'GET|PUT /admin/site', 'GET|PUT /admin/socials', 'GET|PUT /admin/theme', 'GET|PUT /admin/pages', 'GET|PUT /admin/policies'],
       portfolio: ['GET|POST /admin/portfolio', 'PATCH|DELETE /admin/portfolio/:id', 'POST /admin/portfolio/upload', 'GET /admin/portfolio/analytics'],
       reels: ['GET|POST /admin/reels', 'PATCH|DELETE /admin/reels/:id', 'POST /admin/reels/upload', 'GET /admin/reels/analytics'],
       users: ['GET /admin/users', 'PATCH /admin/users/:id'],
@@ -976,6 +976,47 @@ app.get('/api/v1/admin/dashboard', auth, adminOnly, (req, res) => {
     published_at: db.published_at || null,
     has_draft: !!db.draft
   });
+});
+
+
+/** Full remote content — every visible string */
+app.get('/api/v1/admin/content', auth, adminOnly, (req, res) => {
+  const db = load();
+  res.json({
+    site: db.site || {},
+    theme: db.theme || {},
+    pages: db.pages || {},
+    socials: db.socials || {},
+    policies: db.policies || {}
+  });
+});
+
+app.put('/api/v1/admin/content', auth, adminOnly, (req, res) => {
+  const db = load();
+  const b = req.body || {};
+  if (b.site && typeof b.site === 'object') {
+    db.site = Object.assign({}, db.site || {}, b.site);
+    if (b.site.copy && typeof b.site.copy === 'object') {
+      db.site.copy = Object.assign({}, (db.site.copy || {}), b.site.copy);
+      for (const k of Object.keys(b.site.copy)) {
+        if (b.site.copy[k] && typeof b.site.copy[k] === 'object') {
+          db.site.copy[k] = Object.assign({}, (db.site.copy || {})[k] || {}, b.site.copy[k]);
+        }
+      }
+    }
+    if (Array.isArray(b.site.services)) db.site.services = b.site.services;
+  }
+  if (b.theme && typeof b.theme === 'object') db.theme = Object.assign({}, db.theme || {}, b.theme);
+  if (b.pages && typeof b.pages === 'object') db.pages = Object.assign({}, db.pages || {}, b.pages);
+  if (b.socials && typeof b.socials === 'object') db.socials = Object.assign({}, db.socials || {}, b.socials);
+  if (b.policies && typeof b.policies === 'object') {
+    db.policies = db.policies || {};
+    for (const k of Object.keys(b.policies)) {
+      db.policies[k] = Object.assign({}, db.policies[k] || {}, b.policies[k]);
+    }
+  }
+  save(db);
+  res.json({ ok: true, site: db.site, theme: db.theme, pages: db.pages, socials: db.socials, policies: db.policies });
 });
 
 app.get('/api/v1/admin/site', auth, adminOnly, (req, res) => {

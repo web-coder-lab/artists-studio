@@ -22,12 +22,12 @@ fun CmsScreen(api: ApiClient) {
     var tab by remember { mutableStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         ScrollableTabRow(selectedTabIndex = tab, containerColor = CardBg, contentColor = Accent, edgePadding = 8.dp) {
-            listOf("Site", "Socials", "Portfolio", "Reels", "Upload", "Stats", "Publish").forEachIndexed { i, label ->
+            listOf("Texts", "Socials", "Portfolio", "Reels", "Upload", "Stats", "Publish").forEachIndexed { i, label ->
                 Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, fontSize = 13.sp) })
             }
         }
         when (tab) {
-            0 -> SiteEditor(api)
+            0 -> ContentEditorScreen(api)
             1 -> SocialsEditor(api)
             2 -> PortfolioList(api)
             3 -> ReelsList(api)
