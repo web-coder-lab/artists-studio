@@ -353,7 +353,7 @@ app.get('/api/v1/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'artists-studio',
-    phase: 'admin-api-1',
+    phase: 'admin-api-2',
     admin_ui: false,
     admin_auth: 'X-Admin-Key',
     build: 'admin-panel',
@@ -964,9 +964,19 @@ app.get('/api/v1/admin/theme', auth, adminOnly, (req, res) => {
 
 app.put('/api/v1/admin/theme', auth, adminOnly, (req, res) => {
   const db = load();
-  db.theme = { ...(db.theme || {}), ...(req.body?.theme || req.body || {}) };
+  const incoming = req.body?.theme || req.body || {};
+  if (typeof incoming !== 'object') return res.status(400).json({ error: 'theme object required' });
+  db.theme = Object.assign({}, db.theme || {}, {
+    accent: incoming.accent != null ? String(incoming.accent).trim() : (db.theme && db.theme.accent),
+    background: incoming.background != null ? String(incoming.background).trim() : (db.theme && db.theme.background),
+    text: incoming.text != null ? String(incoming.text).trim() : (db.theme && db.theme.text),
+    mode: incoming.mode != null ? String(incoming.mode).trim() : (db.theme && db.theme.mode) || 'dark',
+    radius: incoming.radius != null ? String(incoming.radius).trim() : (db.theme && db.theme.radius)
+  });
+  pushLog(db, { type: 'design', action: 'theme_save', by: req.user && req.user.username, theme: db.theme });
+  db.draft = snapshotConfig(db);
   save(db);
-  res.json({ theme: db.theme });
+  res.json({ theme: db.theme, ok: true });
 });
 
 app.get('/api/v1/admin/pages', auth, adminOnly, (req, res) => {
@@ -1138,10 +1148,13 @@ app.put('/api/v1/admin/site', auth, adminOnly, (req, res) => {
   if (body.pages && typeof body.pages === 'object') {
     db.pages = Object.assign({}, db.pages, body.pages);
   }
-  // keep working copy as draft until publish
+  if (body.site && body.site.copy && typeof body.site.copy === 'object') {
+    db.site.copy = Object.assign({}, (db.site && db.site.copy) || {}, body.site.copy);
+  }
+  pushLog(db, { type: 'cms', action: 'site_save', by: req.user && req.user.username });
   db.draft = snapshotConfig(db);
   save(db);
-  res.json({ site: db.site, theme: db.theme, pages: db.pages, draft: true });
+  res.json({ site: db.site, theme: db.theme, pages: db.pages, draft: true, ok: true });
 });
 
 app.get('/api/v1/admin/socials', auth, adminOnly, (req, res) => {
@@ -1157,9 +1170,29 @@ app.put('/api/v1/admin/socials', auth, adminOnly, (req, res) => {
     instagram: s.instagram != null ? String(s.instagram).trim() : db.socials.instagram,
     youtube: s.youtube != null ? String(s.youtube).trim() : db.socials.youtube
   });
+  pushLog(db, { type: 'socials', action: 'socials_save', by: req.user && req.user.username });
   db.draft = snapshotConfig(db);
   save(db);
-  res.json({ socials: db.socials });
+  res.json({ socials: db.socials, ok: true });
+});
+
+app.put('/api/v1/admin/policies', auth, adminOnly, (req, res) => {
+  const db = load();
+  const incoming = req.body?.policies || req.body || {};
+  if (typeof incoming !== 'object') return res.status(400).json({ error: 'policies object required' });
+  db.policies = db.policies || {};
+  for (const slug of Object.keys(incoming)) {
+    const row = incoming[slug] || {};
+    db.policies[slug] = Object.assign({}, db.policies[slug] || {}, {
+      title: row.title != null ? String(row.title) : (db.policies[slug] && db.policies[slug].title),
+      body: row.body != null ? String(row.body) : (db.policies[slug] && db.policies[slug].body),
+      slug
+    });
+  }
+  pushLog(db, { type: 'cms', action: 'policies_save', by: req.user && req.user.username });
+  db.draft = snapshotConfig(db);
+  save(db);
+  res.json({ policies: db.policies, ok: true });
 });
 
 app.put('/api/v1/admin/policies/:slug', auth, adminOnly, (req, res) => {
