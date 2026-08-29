@@ -6,6 +6,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -13,6 +14,18 @@ import com.artistsstudio.admin.data.ApiClient
 import com.artistsstudio.admin.ui.theme.*
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+
+@Composable
+private fun Field(label: String, value: String, onChange: (String) -> Unit, lines: Int = 1) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        minLines = lines,
+        colors = studioFieldColors()
+    )
+}
 
 @Composable
 fun ContentEditorScreen(api: ApiClient) {
@@ -70,31 +83,28 @@ fun ContentEditorScreen(api: ApiClient) {
         Text("Changes go live on the website", color = Muted, fontSize = 13.sp)
         status?.let { Text(it, color = if (it.contains("Saved")) Accent else Danger, fontSize = 13.sp) }
 
-        fun field(label: String, v: String, set: (String) -> Unit, lines: Int = 1) {
-            OutlinedTextField(v, set, label = { Text(label) }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), minLines = lines, colors = studioFieldColors())
-        }
         Text("Brand", color = Accent, modifier = Modifier.padding(top = 12.dp))
-        field("Brand name", brand) { brand = it }
-        field("Tagline", tagline) { tagline = it }
+        Field("Brand name", brand) { brand = it }
+        Field("Tagline", tagline) { tagline = it }
         Text("Home", color = Accent, modifier = Modifier.padding(top = 12.dp))
-        field("Hero title", heroTitle, { heroTitle = it }, 2)
-        field("Hero subtitle", heroSub, { heroSub = it }, 2)
-        field("CTA — View work", ctaWork) { ctaWork = it }
-        field("CTA — Contact", ctaContact) { ctaContact = it }
-        field("Profile name", profileName) { profileName = it }
-        field("Profile role", profileRole) { profileRole = it }
-        field("Profile bio", profileBio, { profileBio = it }, 2)
+        Field("Hero title", heroTitle, { heroTitle = it }, 2)
+        Field("Hero subtitle", heroSub, { heroSub = it }, 2)
+        Field("CTA — View work", ctaWork) { ctaWork = it }
+        Field("CTA — Contact", ctaContact) { ctaContact = it }
+        Field("Profile name", profileName) { profileName = it }
+        Field("Profile role", profileRole) { profileRole = it }
+        Field("Profile bio", profileBio, { profileBio = it }, 2)
         Text("About / Portfolio / Reels / Contact", color = Accent, modifier = Modifier.padding(top = 12.dp))
-        field("About title", aboutTitle) { aboutTitle = it }
-        field("About body", about, { about = it }, 4)
-        field("Portfolio eyebrow", portEyebrow) { portEyebrow = it }
-        field("Portfolio title", portTitle) { portTitle = it }
-        field("Reels title", reelsTitle) { reelsTitle = it }
-        field("Contact title", contactTitle) { contactTitle = it }
-        field("Contact subtitle", contactSub, { contactSub = it }, 2)
+        Field("About title", aboutTitle) { aboutTitle = it }
+        Field("About body", about, { about = it }, 4)
+        Field("Portfolio eyebrow", portEyebrow) { portEyebrow = it }
+        Field("Portfolio title", portTitle) { portTitle = it }
+        Field("Reels title", reelsTitle) { reelsTitle = it }
+        Field("Contact title", contactTitle) { contactTitle = it }
+        Field("Contact subtitle", contactSub, { contactSub = it }, 2)
         Text("Design (theme)", color = Accent, modifier = Modifier.padding(top = 12.dp))
-        field("Accent color", accent) { accent = it }
-        field("Background color", bg) { bg = it }
+        Field("Accent color", accent) { accent = it }
+        Field("Background color", bg) { bg = it }
 
         Button(
             onClick = {
@@ -119,7 +129,7 @@ fun ContentEditorScreen(api: ApiClient) {
                 }
             },
             modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = androidx.compose.ui.graphics.Color(0xFF14110D))
+            colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Color(0xFF14110D))
         ) { Text("Save all to website") }
     }
 }
