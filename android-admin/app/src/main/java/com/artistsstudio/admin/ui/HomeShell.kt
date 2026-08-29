@@ -41,8 +41,9 @@ fun HomeShell(api: ApiClient) {
         Box(Modifier.padding(pad)) {
             when (tab) {
                 0 -> DashboardScreen(api)
+                1 -> MediaHub(api)
                 2 -> StudioHub(api)
-                else -> PlaceholderScreen(labels[tab], "Phase ${if (tab == 1) 6 else 7} — next")
+                else -> PlaceholderScreen(labels[tab], "Phase 7 — Analytics, Logs, Publish, Security")
             }
         }
     }
