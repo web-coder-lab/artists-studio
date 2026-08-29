@@ -245,9 +245,9 @@ function disassemble(db) {
   out['Admin/media/media.json'] = { items: db.media || [] };
   out['Admin/calls/calls.json'] = { items: db.calls || [] };
   out['Admin/versions/versions.json'] = { items: db.versions || [] };
-  out['Admin/reel_likes/likes.json'] = { items: db.reel_likes || [] };
-  out['Admin/reel_comments/comments.json'] = { items: db.reel_comments || [] };
-  out['Admin/reel_saves/saves.json'] = { items: db.reel_saves || [] };
+  out['Front/reels/likes/likes.json'] = { items: db.reel_likes || [] };
+  out['Front/reels/comments/comments.json'] = { items: db.reel_comments || [] };
+  out['Front/reels/saves/saves.json'] = { items: db.reel_saves || [] };
   out['Front/site/site.json'] = db.site || {};
   out['Front/theme/theme.json'] = db.theme || {};
   out['Front/pages/pages.json'] = db.pages || {};
@@ -258,6 +258,7 @@ function disassemble(db) {
   out['Front/policies/terms.json'] = (db.policies && db.policies.terms) || {};
   out['Front/draft/draft.json'] = db.draft || {};
   out['Front/meta/seq.json'] = db._seq || {};
+  out['Front/meta/published_at.json'] = { published_at: db.published_at || null };
   out['Front/meta/published_at.json'] = { published_at: db.published_at || null };
   return out;
 }
