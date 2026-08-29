@@ -28,7 +28,7 @@ class ApiClient {
     suspend fun health(): JSONObject = get("health", auth = false)
     suspend fun dashboard(): JSONObject = get("admin/dashboard")
     suspend fun dbStatus(): JSONObject = get("admin/db-status")
-    suspend fun logs(limit: Int = 30): JSONArray =
+    suspend fun logs(limit: Int = 50): JSONArray =
         get("admin/logs?limit=$limit").optJSONArray("items") ?: JSONArray()
 
     suspend fun getContent(): JSONObject = get("admin/content")
@@ -45,9 +45,27 @@ class ApiClient {
         get("admin/portfolio").optJSONArray("items") ?: JSONArray()
     suspend fun reels(): JSONArray =
         get("admin/reels").optJSONArray("items") ?: JSONArray()
-
     suspend fun deletePortfolio(id: Int): JSONObject = delete("admin/portfolio/$id")
     suspend fun deleteReel(id: Int): JSONObject = delete("admin/reels/$id")
+
+    suspend fun portfolioAnalytics(): JSONArray =
+        get("admin/portfolio/analytics").optJSONArray("items") ?: JSONArray()
+    suspend fun reelsAnalytics(): JSONArray =
+        get("admin/reels/analytics").optJSONArray("items") ?: JSONArray()
+
+    suspend fun publish(note: String = ""): JSONObject =
+        post("admin/publish", JSONObject().put("note", note))
+    suspend fun versions(): JSONObject = get("admin/versions")
+    suspend fun restoreVersion(id: Int): JSONObject =
+        post("admin/versions/$id/restore", JSONObject())
+
+    suspend fun securityDashboard(): JSONObject = get("admin/security/dashboard")
+    suspend fun securityAudit(): JSONObject = get("admin/security/audit")
+    suspend fun revokeAllSessions(): JSONObject =
+        post("admin/security/sessions/revoke-all", JSONObject())
+
+    suspend fun visitors(): JSONArray =
+        get("admin/visitors").optJSONArray("items") ?: JSONArray()
 
     suspend fun uploadPortfolio(file: File, mime: String, title: String, caption: String): JSONObject =
         withContext(Dispatchers.IO) {
@@ -56,32 +74,22 @@ class ApiClient {
                 .addFormDataPart("title", title)
                 .addFormDataPart("caption", caption)
                 .build()
-            val req = Request.Builder()
-                .url(base + "admin/portfolio/upload")
-                .header("X-Admin-Key", adminKey)
-                .post(body)
-                .build()
+            val req = Request.Builder().url(base + "admin/portfolio/upload")
+                .header("X-Admin-Key", adminKey).post(body).build()
             parse(client.newCall(req).execute())
         }
 
-    suspend fun uploadReel(
-        file: File,
-        mime: String,
-        title: String,
-        description: String
-    ): JSONObject = withContext(Dispatchers.IO) {
-        val body = MultipartBody.Builder().setType(MultipartBody.FORM)
-            .addFormDataPart("file", file.name, file.asRequestBody(mime.toMediaType()))
-            .addFormDataPart("title", title)
-            .addFormDataPart("description", description)
-            .build()
-        val req = Request.Builder()
-            .url(base + "admin/reels/upload")
-            .header("X-Admin-Key", adminKey)
-            .post(body)
-            .build()
-        parse(client.newCall(req).execute())
-    }
+    suspend fun uploadReel(file: File, mime: String, title: String, description: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+                .addFormDataPart("file", file.name, file.asRequestBody(mime.toMediaType()))
+                .addFormDataPart("title", title)
+                .addFormDataPart("description", description)
+                .build()
+            val req = Request.Builder().url(base + "admin/reels/upload")
+                .header("X-Admin-Key", adminKey).post(body).build()
+            parse(client.newCall(req).execute())
+        }
 
     private suspend fun get(path: String, auth: Boolean = true) = withContext(Dispatchers.IO) {
         val b = Request.Builder().url(base + path)
@@ -90,18 +98,22 @@ class ApiClient {
     }
 
     private suspend fun put(path: String, body: JSONObject) = withContext(Dispatchers.IO) {
-        val b = Request.Builder()
-            .url(base + path)
+        val b = Request.Builder().url(base + path)
             .header("X-Admin-Key", adminKey)
             .put(body.toString().toRequestBody(json))
         parse(client.newCall(b.build()).execute())
     }
 
-    private suspend fun delete(path: String) = withContext(Dispatchers.IO) {
-        val b = Request.Builder()
-            .url(base + path)
+    private suspend fun post(path: String, body: JSONObject) = withContext(Dispatchers.IO) {
+        val b = Request.Builder().url(base + path)
             .header("X-Admin-Key", adminKey)
-            .delete()
+            .post(body.toString().toRequestBody(json))
+        parse(client.newCall(b.build()).execute())
+    }
+
+    private suspend fun delete(path: String) = withContext(Dispatchers.IO) {
+        val b = Request.Builder().url(base + path)
+            .header("X-Admin-Key", adminKey).delete()
         parse(client.newCall(b.build()).execute())
     }
 

@@ -43,18 +43,9 @@ fun HomeShell(api: ApiClient) {
                 0 -> DashboardScreen(api)
                 1 -> MediaHub(api)
                 2 -> StudioHub(api)
-                else -> PlaceholderScreen(labels[tab], "Phase 7 — Analytics, Logs, Publish, Security")
+                3 -> InsightHub(api)
+                4 -> MoreHub(api)
             }
         }
-    }
-}
-
-@Composable
-fun PlaceholderScreen(title: String, note: String) {
-    androidx.compose.foundation.layout.Column(
-        Modifier.padding(24.dp)
-    ) {
-        Text(title, color = TextC, fontSize = 22.sp)
-        Text(note, color = Muted, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
     }
 }
