@@ -233,7 +233,6 @@ private fun PublishPanel(api: ApiClient) {
 }
 
 @Composable
-@Composable
 private fun CmsField(label: String, value: String, single: Boolean = true, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = value, onValueChange = onChange, label = { Text(label) },
