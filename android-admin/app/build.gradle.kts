@@ -9,15 +9,25 @@ android {
         applicationId = "com.artistsstudio.admin"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.7.0-phase7"
+        versionCode = 8
+        versionName = "1.0.0"
         buildConfigField("String", "API_BASE", "\"https://artists-studio.onrender.com/api/v1/\"")
         buildConfigField("String", "ADMIN_KEY", "\"StudioAdminKey-2026-ChangeMe\"")
         buildConfigField("String", "SITE_BASE", "\"https://artists-studio.onrender.com\"")
     }
+    signingConfigs {
+        create("release") {
+            // CI: sign with debug keystore so APK installs without custom keystore
+            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

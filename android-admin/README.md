@@ -1,10 +1,16 @@
-# Studio Admin (Phase 4)
+# Studio Admin — Artist's Studio
 
 Kotlin · Jetpack Compose · **no login screen**
 
-- Auth: `X-Admin-Key` in `BuildConfig.ADMIN_KEY`
-- API: `https://artists-studio.onrender.com/api/v1/`
-- Gate → Dashboard (live stats)
+Auth: `X-Admin-Key` (BuildConfig)  
+API: https://artists-studio.onrender.com/api/v1/
 
-## Open in Android Studio
-Open the `android-admin` folder · Sync · Run on device/emulator.
+## Tabs
+- Home — Dashboard
+- Media — Portfolio, Reels, Upload wizard
+- Studio — Texts, Design, Socials
+- Insight — Analytics, Logs, Devices
+- More — Publish, Security, Settings
+
+## Build
+Open `android-admin` in Android Studio, or use GitHub Actions release.
