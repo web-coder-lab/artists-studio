@@ -354,6 +354,7 @@ app.get('/api/v1/health', (_req, res) => {
     status: 'ok',
     service: 'artists-studio',
     phase: 'admin-api-3',
+    apk_phase: 4,
     admin_ui: false,
     admin_auth: 'X-Admin-Key',
     build: 'admin-panel',
