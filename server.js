@@ -65,8 +65,10 @@ const privateStorage = multer.diskStorage({
 });
 
 const ALLOWED_MIME = new Set([
-  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-  'video/mp4', 'video/webm',
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+  'video/mp4', 'video/webm', 'video/quicktime', 'video/3gpp', 'video/3gpp2',
+  'video/x-matroska', 'video/x-msvideo', 'video/avi', 'video/mpeg',
+  'application/octet-stream',
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -74,9 +76,14 @@ const ALLOWED_MIME = new Set([
 ]);
 
 function fileFilter(_req, file, cb) {
-  if (ALLOWED_MIME.has(file.mimetype) || /\.(jpe?g|png|webp|gif|mp4|webm|pdf|docx?|txt)$/i.test(file.originalname)) {
-    cb(null, true);
-  } else cb(new Error('File type not allowed'));
+  const name = file.originalname || '';
+  const mime = (file.mimetype || '').toLowerCase();
+  if (mime.startsWith('video/') || mime.startsWith('image/')) return cb(null, true);
+  if (ALLOWED_MIME.has(mime)) return cb(null, true);
+  if (/\.(jpe?g|png|webp|gif|heic|heif|mp4|webm|mov|m4v|3gp|mkv|avi|pdf|docx?|txt)$/i.test(name)) {
+    return cb(null, true);
+  }
+  cb(new Error('File type not allowed: ' + (mime || name || 'unknown')));
 }
 
 const publicStorage = multer.diskStorage({
@@ -110,7 +117,7 @@ async function compressImageIfNeeded(filePath, mime) {
 
 const uploadPublic = multer({
   storage: publicStorage,
-  limits: { fileSize: 80 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 120 * 1024 * 1024, files: 1 },
   fileFilter
 });
 const uploadChat = multer({
@@ -1365,7 +1372,12 @@ app.get('/api/v1/admin/preview', auth, adminOnly, (req, res) => {
 // ——— Gallery uploads (no external URL required) Phase 10 ———
 app.post('/api/v1/admin/portfolio/upload', auth, adminOnly, (req, res, next) => {
   uploadPublic.single('file')(req, res, (err) => {
-    if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE'
+        ? 'Image too large (max 120MB).'
+        : (err.message || 'Upload failed');
+      return res.status(400).json({ error: msg });
+    }
     next();
   });
 }, async (req, res) => {
@@ -1394,14 +1406,20 @@ app.post('/api/v1/admin/portfolio/upload', auth, adminOnly, (req, res, next) => 
 
 app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
   uploadPublic.single('file')(req, res, (err) => {
-    if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE'
+        ? 'Video too large (max 120MB). Compress or pick a shorter clip.'
+        : (err.message || 'Upload failed');
+      return res.status(400).json({ error: msg });
+    }
     next();
   });
 }, async (req, res) => {
+  try {
   if (req.file && (req.file.mimetype || '').startsWith('image/')) {
     try { req.file.path = await compressImageIfNeeded(req.file.path, req.file.mimetype); req.file.filename = path.basename(req.file.path); } catch (_) {}
   }
-  if (!req.file) return res.status(400).json({ error: 'Video/image file required' });
+  if (!req.file) return res.status(400).json({ error: 'Video/image file required — field name must be file' });
   const db = load();
   if (db._seq.reels == null) db._seq.reels = (db.reels || []).length;
   const id = ++db._seq.reels;
@@ -1423,8 +1441,12 @@ app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
   db.reels.push(item);
   pushLog(db, { type: 'media', action: 'reel_upload', id: item.id, title: item.title, by: req.user && req.user.username });
   db.draft = typeof snapshotConfig === 'function' ? snapshotConfig(db) : db.draft;
-  save(db);
-  res.status(201).json({ item, ok: true });
+  try { save(db); } catch (e) { console.error('reel save', e.message); }
+  res.status(201).json({ item, ok: true, url: item.url });
+  } catch (e) {
+    console.error('reel upload', e);
+    res.status(500).json({ error: e.message || 'Upload failed' });
+  }
 });
 
 // Reels engagement

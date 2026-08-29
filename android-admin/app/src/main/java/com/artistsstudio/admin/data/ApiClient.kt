@@ -16,9 +16,10 @@ import java.util.concurrent.TimeUnit
 
 class ApiClient {
     private val client = OkHttpClient.Builder()
-        .connectTimeout(45, TimeUnit.SECONDS)
-        .readTimeout(180, TimeUnit.SECONDS)
-        .writeTimeout(180, TimeUnit.SECONDS)
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.MINUTES)
+        .writeTimeout(10, TimeUnit.MINUTES)
+        .callTimeout(12, TimeUnit.MINUTES)
         .build()
 
     private val base = BuildConfig.API_BASE
@@ -121,7 +122,13 @@ class ApiClient {
         val text = res.body?.string().orEmpty()
         if (res.code !in 200..299) {
             val err = runCatching { JSONObject(text).optString("error") }.getOrNull()
-            throw Exception(err?.ifBlank { null } ?: "HTTP ${res.code}")
+            val hint = when {
+                res.code == 413 -> "File too large for server"
+                res.code == 502 || res.code == 504 -> "Server timeout — try a shorter video (<30s / under 25MB)"
+                res.code == 401 || res.code == 403 -> "Admin key rejected"
+                else -> null
+            }
+            throw Exception(err?.ifBlank { null } ?: hint ?: "HTTP ${res.code}: ${text.take(120)}")
         }
         return if (text.isBlank()) JSONObject() else JSONObject(text)
     }

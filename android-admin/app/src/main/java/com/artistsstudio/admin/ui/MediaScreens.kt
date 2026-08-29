@@ -162,7 +162,9 @@ fun UploadWizard(api: ApiClient) {
         if (u != null) {
             uri = u
             fileName = u.lastPathSegment ?: "video"
-            mime = ctx.contentResolver.getType(u) ?: "video/mp4"
+            val detected = ctx.contentResolver.getType(u)
+            mime = detected ?: "video/mp4"
+            if (mime == "application/octet-stream") mime = "video/mp4"
             step = 2
         }
     }
@@ -182,6 +184,7 @@ fun UploadWizard(api: ApiClient) {
             .padding(16.dp)
     ) {
         Text("Upload", color = TextC, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+        Text("Tip: short clips under ~25MB upload more reliably", color = Muted, fontSize = 11.sp)
         msg?.let {
             Text(
                 it,
@@ -253,7 +256,9 @@ fun UploadWizard(api: ApiClient) {
                                     uri = null
                                     title = ""
                                     description = ""
-                                }.onFailure { msg = it.message }
+                                }.onFailure { e ->
+                                    msg = e.message ?: "Upload failed"
+                                }
                                 uploading = false
                             }
                         },
