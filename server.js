@@ -430,7 +430,10 @@ app.get('/api/v1/whatsapp-prefill', authOptional, (req, res) => {
 
 
 // ——— Contact form (Phase 3) ———
-app.post('/api/v1/contact', contactLimiter, authOptional, (req, res) => {
+app.post('/api/v1/contact', contactLimiter, authOptional, (_req, res) => {
+  return res.status(410).json({ error: 'Use WhatsApp, Instagram, or email on the Contact page.' });
+});
+app.post('/api/v1/contact_disabled', contactLimiter, authOptional, (req, res) => {
   const name = String(req.body?.name || '').trim();
   const email = String(req.body?.email || '').trim();
   const phone = String(req.body?.phone || '').trim();
@@ -498,7 +501,10 @@ app.patch('/api/v1/admin/contacts/:id', auth, adminOnly, (req, res) => {
 });
 
 // ——— Auth (Phase 1) ———
-app.post('/api/v1/auth/register', authLimiter, (req, res) => {
+app.post('/api/v1/auth/register', authLimiter, (_req, res) => {
+  return res.status(410).json({ error: 'Public registration closed. Contact via WhatsApp, Instagram, or email.' });
+});
+app.post('/api/v1/auth/register_disabled', authLimiter, (req, res) => {
   const username = String(req.body?.username || '').trim();
   const name = String(req.body?.name || '').trim();
   const password = String(req.body?.password || '');
@@ -559,6 +565,10 @@ app.post('/api/v1/auth/login', authLimiter, (req, res) => {
   }
   if (user.status !== 'active') {
     return res.status(403).json({ error: 'Account disabled' });
+  }
+  // Public site has no user accounts — only admin roles may sign in (Admin APK)
+  if (!isAdminRole(user.role)) {
+    return res.status(403).json({ error: 'User accounts disabled. Contact studio via WhatsApp / Instagram / email.' });
   }
   sec.clearFailed(db, username);
   user.last_login = new Date().toISOString();
@@ -705,6 +715,9 @@ function attachmentKind(mime, name) {
 
 // User: ensure conversation + list (single artist thread)
 app.get('/api/v1/conversations', auth, (req, res) => {
+  if (!isAdminRole(req.user.role)) {
+    return res.status(410).json({ error: 'In-site chat removed. Use WhatsApp, Instagram, or email.' });
+  }
   const db = load();
   if (isAdminRole(req.user.role)) {
     ensureChatSeq(db);
@@ -739,6 +752,9 @@ app.get('/api/v1/conversations', auth, (req, res) => {
 });
 
 app.get('/api/v1/conversations/:id/messages', auth, (req, res) => {
+  if (!isAdminRole(req.user.role)) {
+    return res.status(410).json({ error: 'In-site chat removed.' });
+  }
   const db = load();
   ensureChatSeq(db);
   const id = +req.params.id;
@@ -776,6 +792,9 @@ app.get('/api/v1/conversations/:id/messages', auth, (req, res) => {
 });
 
 app.post('/api/v1/conversations/:id/messages', auth, (req, res, next) => {
+  if (!isAdminRole(req.user.role)) {
+    return res.status(410).json({ error: 'In-site chat removed.' });
+  }
   uploadChat.single('file')(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
     next();
@@ -1594,7 +1613,10 @@ function publicCall(c) {
   };
 }
 
-app.post('/api/v1/calls', auth, (req, res) => {
+app.post('/api/v1/calls', auth, (_req, res) => {
+  return res.status(410).json({ error: 'Calls disabled. Contact via WhatsApp / Instagram / email.' });
+});
+app.post('/api/v1/calls_disabled', auth, (req, res) => {
   if (isAdminRole(req.user.role)) {
     return res.status(400).json({ error: 'Admin receives calls; user initiates' });
   }
@@ -1710,7 +1732,10 @@ app.post('/api/v1/calls/:id/end', auth, (req, res) => {
 
 
 // User shortcut: open/create artist chat then post
-app.post('/api/v1/chat/artist', auth, (req, res) => {
+app.post('/api/v1/chat/artist', auth, (_req, res) => {
+  return res.status(410).json({ error: 'In-site chat removed.' });
+});
+app.post('/api/v1/chat/artist_disabled', auth, (req, res) => {
   if (isAdminRole(req.user.role)) {
     return res.status(400).json({ error: 'Use conversation endpoints as admin' });
   }
