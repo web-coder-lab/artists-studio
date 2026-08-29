@@ -196,7 +196,30 @@ function authOptional(req, _res, next) {
   next();
 }
 
+/** Admin app key (no login UI). Header: X-Admin-Key or Authorization: Bearer <ADMIN_KEY> */
+const ADMIN_KEY = process.env.ADMIN_KEY || process.env.STUDIO_ADMIN_KEY || 'StudioAdminKey-2026-ChangeMe';
+
+function tryAdminKey(req) {
+  const key =
+    req.headers['x-admin-key'] ||
+    (String(req.headers.authorization || '').startsWith('Bearer ')
+      ? String(req.headers.authorization).slice(7).trim()
+      : '');
+  if (!key || key !== ADMIN_KEY) return false;
+  req.user = {
+    id: 0,
+    username: 'admin',
+    name: 'Studio Admin',
+    role: 'superadmin',
+    status: 'active',
+    auth_via: 'admin_key'
+  };
+  req.adminKeyAuth = true;
+  return true;
+}
+
 function auth(req, res, next) {
+  if (tryAdminKey(req)) return next();
   const h = req.headers.authorization || '';
   const token = h.startsWith('Bearer ') ? h.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
@@ -330,9 +353,10 @@ app.get('/api/v1/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'artists-studio',
-    phase: 12,
+    phase: 'admin-api-1',
     admin_ui: false,
-    build: 'final',
+    admin_auth: 'X-Admin-Key',
+    build: 'admin-panel',
     db: process.env.GITHUB_DB_TOKEN ? 'github' : (process.env.DATABASE_URL ? 'postgres' : 'file')
   });
 });
@@ -967,7 +991,7 @@ app.get('/api/v1/admin/catalog', auth, adminOnly, (_req, res) => {
     note: 'Browser admin UI removed — use Studio Admin Android app',
     groups: {
       auth: ['POST /auth/login', 'GET /auth/me', 'POST /auth/logout', 'POST /auth/password', 'PATCH /auth/profile'],
-      dashboard: ['GET /admin/dashboard', 'GET /admin/db-status', 'GET /admin/notifications'],
+      dashboard: ['GET /admin/dashboard', 'GET /admin/db-status', 'GET /admin/logs', 'GET /admin/notifications'],
       chat: ['GET /conversations', 'GET /conversations/:id/messages', 'POST /conversations/:id/messages'],
       contacts: ['GET /admin/contacts', 'GET /admin/contacts/:id', 'PATCH /admin/contacts/:id'],
       cms: ['GET|PUT /admin/content', 'GET|PUT /admin/site', 'GET|PUT /admin/socials', 'GET|PUT /admin/theme', 'GET|PUT /admin/pages', 'GET|PUT /admin/policies'],
@@ -984,19 +1008,77 @@ app.get('/api/v1/admin/catalog', auth, adminOnly, (_req, res) => {
 
 app.get('/api/v1/admin/dashboard', auth, adminOnly, (req, res) => {
   const db = load();
+  const portfolio = db.portfolio || [];
+  const reels = db.reels || [];
+  const totalReelLikes = (db.reel_likes || []).length;
+  const totalPhotoLikes = (db.portfolio_likes || []).length;
+  const totalLikes = totalReelLikes + totalPhotoLikes;
+  const dbMode = process.env.GITHUB_DB_TOKEN || process.env.GITHUB_TOKEN
+    ? 'github'
+    : process.env.DATABASE_URL
+      ? 'postgres'
+      : 'file';
   res.json({
-    users: (db.users || []).filter((u) => !isAdminRole(u.role)).length,
-    contacts_new: (db.contacts || []).filter((c) => c.status === 'new').length,
-    conversations: (db.conversations || []).length,
-    chat_unread: (db.conversations || []).reduce((n, c) => n + (c.admin_unread || 0), 0),
-    portfolio: (db.portfolio || []).length,
-    reels: (db.reels || []).length,
+    portfolio: portfolio.length,
+    reels: reels.length,
+    total_likes: totalLikes,
+    reel_likes: totalReelLikes,
+    photo_likes: totalPhotoLikes,
+    photo_saves: (db.portfolio_saves || []).length,
+    reel_saves: (db.reel_saves || []).length,
     versions: (db.versions || []).length,
     published_at: db.published_at || null,
-    has_draft: !!db.draft
+    publish_status: db.published_at ? 'published' : 'never',
+    has_draft: !!db.draft,
+    db_status: dbMode,
+    db: dbMode,
+    server_time: new Date().toISOString()
   });
 });
 
+
+
+function ensureLogs(db) {
+  if (!Array.isArray(db.admin_logs)) db.admin_logs = [];
+  return db.admin_logs;
+}
+
+function pushLog(db, entry) {
+  const logs = ensureLogs(db);
+  logs.unshift({
+    id: (logs[0] && logs[0].id ? logs[0].id : 0) + 1,
+    at: new Date().toISOString(),
+    ...entry
+  });
+  if (logs.length > 300) logs.length = 300;
+}
+
+app.get('/api/v1/admin/logs', auth, adminOnly, (req, res) => {
+  const db = load();
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
+  const type = String(req.query.type || '').trim();
+  let items = ensureLogs(db).slice();
+  // merge recent security audit as log-like entries
+  const audit = ((db.security && db.security.audit) || []).slice(0, 50).map((a) => ({
+    id: 'a-' + a.id,
+    at: a.at,
+    type: 'security',
+    action: a.action,
+    detail: a
+  }));
+  const engagement = (db.admin_notifications || []).slice(-40).reverse().map((n) => ({
+    id: 'n-' + n.id,
+    at: n.at,
+    type: n.kind || 'engagement',
+    action: n.kind,
+    text: n.text,
+    detail: n
+  }));
+  let merged = items.concat(audit).concat(engagement);
+  merged.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  if (type) merged = merged.filter((x) => String(x.type || x.action || '').includes(type));
+  res.json({ items: merged.slice(0, limit) });
+});
 
 /** Full remote content — every visible string */
 app.get('/api/v1/admin/content', auth, adminOnly, (req, res) => {
@@ -1034,6 +1116,7 @@ app.put('/api/v1/admin/content', auth, adminOnly, (req, res) => {
       db.policies[k] = Object.assign({}, db.policies[k] || {}, b.policies[k]);
     }
   }
+  pushLog(db, { type: 'cms', action: 'content_save', by: req.user && req.user.username });
   save(db);
   res.json({ ok: true, site: db.site, theme: db.theme, pages: db.pages, socials: db.socials, policies: db.policies });
 });
