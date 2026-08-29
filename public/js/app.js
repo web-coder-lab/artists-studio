@@ -55,25 +55,39 @@ function escapeHtml(s) {
 
 function navHtml() {
   const links = [
-    ['/', 'home', 'Home', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>`],
-    ['/about.html', 'about', 'About', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 19.5c1.8-3.2 4.2-4.5 6.5-4.5s4.7 1.3 6.5 4.5"/></svg>`],
-    ['/portfolio.html', 'portfolio', 'Portfolio', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/></svg>`],
-    ['/reels.html', 'reels', 'Reels', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="m10 8 6 4-6 4V8z"/></svg>`],
-    ['/services.html', 'services', 'Services', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 13.8 9H19l-4 3.2 1.5 5.3L12 14.8 7.5 17.5 9 12.2 5 9h5.2L12 3.5z"/></svg>`],
-    ['/contact.html', 'contact', 'Contact', `<svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>`],
+    ['/', 'home', 'Home', `<svg class="nav-ico" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>`],
+    ['/about.html', 'about', 'About', `<svg class="nav-ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 19.5c1.2-3.2 3.7-4.8 7-4.8s5.8 1.6 7 4.8"/></svg>`],
+    ['/portfolio.html', 'portfolio', 'Portfolio', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`],
+    ['/reels.html', 'reels', 'Reels', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 8 6 4-6 4V8z"/></svg>`],
+    ['/services.html', 'services', 'Services', `<svg class="nav-ico" viewBox="0 0 24 24"><path d="M12 3.5 13.8 9H19l-4 3.2 1.5 5.3L12 14.8 7.5 17.5 9 12.2 5 9h5.2L12 3.5z"/></svg>`],
+    ['/contact.html', 'contact', 'Contact', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 8 8 6 8-6"/></svg>`],
   ];
-  const linkEls = links.map(([href, key, label, ico]) =>
-    `<a href="${href}" class="${page === key ? 'active' : ''}" title="${label}" aria-label="${label}">${ico}<span class="nav-label">${label}</span></a>`
+  const drawerLinks = links.map(([href, key, label, ico]) =>
+    `<a class="nav-drawer-link${page === key ? ' active' : ''}" href="${href}">${ico}<span>${label}</span></a>`
   ).join('');
   return `
   <div class="nav-scrim" id="navScrim" hidden></div>
-  <header class="nav">
+  <aside class="nav-drawer" id="navDrawer" aria-hidden="true">
+    <div class="nav-drawer-head">
+      <strong class="nav-drawer-title">Navigate</strong>
+      <button type="button" class="nav-chip" id="navClose" aria-label="Close menu">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <nav class="nav-drawer-links" id="navLinks">${drawerLinks}</nav>
+    <div class="nav-drawer-foot">Artist's Studio</div>
+  </aside>
+  <header class="nav site-top">
     <a class="brand nav-brand" href="/">Artist's <span>Studio</span></a>
-    <nav class="nav-links" id="navLinks">${linkEls}</nav>
     <div class="nav-actions" id="navActions"></div>
-    <button type="button" class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-    </button>
+    <div class="nav-top-btns">
+      <a class="nav-chip" href="/portfolio.html" title="Portfolio" aria-label="Portfolio">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      </a>
+      <button type="button" class="nav-chip nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navDrawer">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
   </header>`;
 }
 
@@ -91,8 +105,9 @@ function modalsHtml() {
 function renderNavAuth() {
   const el = $('navActions');
   if (!el) return;
-  el.innerHTML = `<button type="button" class="theme-toggle" id="themeToggle" title="Theme" aria-label="Toggle theme">◐</button>
-    <a class="btn btn-sm" href="/contact.html">Contact</a>`;
+  el.innerHTML = `<button type="button" class="nav-chip theme-toggle" id="themeToggle" title="Theme" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>`;
   $('themeToggle')?.addEventListener('click', toggleTheme);
 }
 
@@ -384,12 +399,13 @@ async function onContactSubmit(e) {
 
 function bindGlobal() {
   const toggleMenu = (force) => {
-    const links = $('navLinks');
+    const drawer = $('navDrawer');
     const btn = $('navToggle');
     const scrim = $('navScrim');
-    if (!links || !btn) return;
-    const open = force != null ? force : !links.classList.contains('open');
-    links.classList.toggle('open', open);
+    if (!drawer || !btn) return;
+    const open = force != null ? force : !drawer.classList.contains('open');
+    drawer.classList.toggle('open', open);
+    drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
     if (scrim) {
@@ -402,6 +418,7 @@ function bindGlobal() {
     e.stopPropagation();
     toggleMenu();
   });
+  $('navClose')?.addEventListener('click', () => toggleMenu(false));
   $('navScrim')?.addEventListener('click', () => toggleMenu(false));
   $('navLinks')?.querySelectorAll('a').forEach((a) => {
     a.addEventListener('click', () => toggleMenu(false));
