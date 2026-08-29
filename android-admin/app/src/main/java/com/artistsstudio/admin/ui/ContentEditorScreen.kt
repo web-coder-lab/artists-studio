@@ -16,7 +16,12 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 @Composable
-private fun Field(label: String, value: String, onChange: (String) -> Unit, lines: Int = 1) {
+private fun Field(
+    label: String,
+    value: String,
+    lines: Int = 1,
+    onChange: (String) -> Unit
+) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
@@ -50,7 +55,7 @@ fun ContentEditorScreen(api: ApiClient) {
     var status by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    fun load() = scope.launch {
+    LaunchedEffect(Unit) {
         runCatching {
             val c = api.getContent()
             val site = c.optJSONObject("site") ?: JSONObject()
@@ -76,7 +81,6 @@ fun ContentEditorScreen(api: ApiClient) {
             bg = theme.optString("background", "#070708")
         }.onFailure { status = it.message }
     }
-    LaunchedEffect(Unit) { load() }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text("All page text & design", color = TextC, fontSize = 20.sp, fontWeight = FontWeight.Medium)
@@ -87,21 +91,21 @@ fun ContentEditorScreen(api: ApiClient) {
         Field("Brand name", brand) { brand = it }
         Field("Tagline", tagline) { tagline = it }
         Text("Home", color = Accent, modifier = Modifier.padding(top = 12.dp))
-        Field("Hero title", heroTitle, { heroTitle = it }, 2)
-        Field("Hero subtitle", heroSub, { heroSub = it }, 2)
+        Field("Hero title", heroTitle, lines = 2) { heroTitle = it }
+        Field("Hero subtitle", heroSub, lines = 2) { heroSub = it }
         Field("CTA — View work", ctaWork) { ctaWork = it }
         Field("CTA — Contact", ctaContact) { ctaContact = it }
         Field("Profile name", profileName) { profileName = it }
         Field("Profile role", profileRole) { profileRole = it }
-        Field("Profile bio", profileBio, { profileBio = it }, 2)
+        Field("Profile bio", profileBio, lines = 2) { profileBio = it }
         Text("About / Portfolio / Reels / Contact", color = Accent, modifier = Modifier.padding(top = 12.dp))
         Field("About title", aboutTitle) { aboutTitle = it }
-        Field("About body", about, { about = it }, 4)
+        Field("About body", about, lines = 4) { about = it }
         Field("Portfolio eyebrow", portEyebrow) { portEyebrow = it }
         Field("Portfolio title", portTitle) { portTitle = it }
         Field("Reels title", reelsTitle) { reelsTitle = it }
         Field("Contact title", contactTitle) { contactTitle = it }
-        Field("Contact subtitle", contactSub, { contactSub = it }, 2)
+        Field("Contact subtitle", contactSub, lines = 2) { contactSub = it }
         Text("Design (theme)", color = Accent, modifier = Modifier.padding(top = 12.dp))
         Field("Accent color", accent) { accent = it }
         Field("Background color", bg) { bg = it }
@@ -115,12 +119,14 @@ fun ContentEditorScreen(api: ApiClient) {
                             .put("hero_title", heroTitle).put("hero_subtitle", heroSub)
                             .put("profile_name", profileName).put("profile_role", profileRole)
                             .put("profile_bio", profileBio).put("about", about)
-                            .put("copy", JSONObject()
-                                .put("home", JSONObject().put("cta_work", ctaWork).put("cta_contact", ctaContact))
-                                .put("about", JSONObject().put("title", aboutTitle).put("body", about).put("eyebrow", "Studio"))
-                                .put("portfolio", JSONObject().put("title", portTitle).put("eyebrow", portEyebrow))
-                                .put("reels", JSONObject().put("title", reelsTitle).put("eyebrow", "Motion"))
-                                .put("contact", JSONObject().put("title", contactTitle).put("subtitle", contactSub).put("eyebrow", "Connect"))
+                            .put(
+                                "copy",
+                                JSONObject()
+                                    .put("home", JSONObject().put("cta_work", ctaWork).put("cta_contact", ctaContact))
+                                    .put("about", JSONObject().put("title", aboutTitle).put("body", about).put("eyebrow", "Studio"))
+                                    .put("portfolio", JSONObject().put("title", portTitle).put("eyebrow", portEyebrow))
+                                    .put("reels", JSONObject().put("title", reelsTitle).put("eyebrow", "Motion"))
+                                    .put("contact", JSONObject().put("title", contactTitle).put("subtitle", contactSub).put("eyebrow", "Connect"))
                             )
                         val theme = JSONObject().put("accent", accent).put("background", bg)
                         api.putContent(JSONObject().put("site", site).put("theme", theme))
