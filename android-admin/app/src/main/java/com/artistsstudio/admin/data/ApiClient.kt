@@ -4,18 +4,21 @@ import com.artistsstudio.admin.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 class ApiClient(private val session: SessionStore) {
     private val client = OkHttpClient.Builder()
-        .connectTimeout(45, TimeUnit.SECONDS)
-        .readTimeout(45, TimeUnit.SECONDS)
-        .writeTimeout(45, TimeUnit.SECONDS)
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
+        .writeTimeout(120, TimeUnit.SECONDS)
         .build()
     private val base = BuildConfig.API_BASE
     private val json = "application/json; charset=utf-8".toMediaType()
@@ -51,6 +54,37 @@ class ApiClient(private val session: SessionStore) {
     suspend fun securityDashboard() = get("admin/security/dashboard")
     suspend fun securityAudit(): JSONArray = get("admin/security/audit").optJSONArray("items") ?: JSONArray()
     suspend fun revokeAllSessions() = post("admin/security/sessions/revoke-all", JSONObject())
+
+    suspend fun reelAnalytics(): JSONArray =
+        get("admin/reels/analytics").optJSONArray("items") ?: JSONArray()
+    suspend fun portfolioAnalytics(): JSONArray =
+        get("admin/portfolio/analytics").optJSONArray("items") ?: JSONArray()
+
+    suspend fun uploadPortfolio(file: File, mime: String, title: String, category: String, caption: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+                .addFormDataPart("file", file.name, file.asRequestBody(mime.toMediaType()))
+                .addFormDataPart("title", title)
+                .addFormDataPart("category", category)
+                .addFormDataPart("caption", caption)
+                .build()
+            val req = Request.Builder().url(base + "admin/portfolio/upload").post(body)
+                .header("Authorization", "Bearer ${tok()}").build()
+            parse(client.newCall(req).execute())
+        }
+
+    suspend fun uploadReel(file: File, mime: String, title: String, description: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+                .addFormDataPart("file", file.name, file.asRequestBody(mime.toMediaType()))
+                .addFormDataPart("title", title)
+                .addFormDataPart("description", description)
+                .addFormDataPart("caption", description)
+                .build()
+            val req = Request.Builder().url(base + "admin/reels/upload").post(body)
+                .header("Authorization", "Bearer ${tok()}").build()
+            parse(client.newCall(req).execute())
+        }
 
     private suspend fun tok() = session.token() ?: throw Exception("Not signed in")
     private suspend fun get(path: String, auth: Boolean = true) = withContext(Dispatchers.IO) {

@@ -350,9 +350,24 @@ app.get('/api/v1/pages/:slug', authOptional, (req, res) => {
   res.json({ page, site: db.site });
 });
 
+
+function actorId(req) {
+  if (req.user && req.user.id) return 'u:' + req.user.id;
+  const g = String(req.headers['x-guest-id'] || req.body?.guest_id || '').trim().slice(0, 64);
+  return g ? 'g:' + g : null;
+}
+
 app.get('/api/v1/portfolio', authOptional, (req, res) => {
   const db = load();
-  res.json({ items: db.portfolio || [] });
+  const aid = actorId(req);
+  const items = (db.portfolio || []).map((p) => {
+    const likes = (db.portfolio_likes || []).filter((x) => x.portfolio_id === p.id).length;
+    const saves = (db.portfolio_saves || []).filter((x) => x.portfolio_id === p.id).length;
+    const liked = aid ? (db.portfolio_likes || []).some((x) => x.portfolio_id === p.id && x.actor === aid) : false;
+    const saved = aid ? (db.portfolio_saves || []).some((x) => x.portfolio_id === p.id && x.actor === aid) : false;
+    return { ...p, likes, saves, liked, saved };
+  });
+  res.json({ items });
 });
 
 app.get('/api/v1/reels', authOptional, (req, res) => {
@@ -937,8 +952,8 @@ app.get('/api/v1/admin/catalog', auth, adminOnly, (_req, res) => {
       chat: ['GET /conversations', 'GET /conversations/:id/messages', 'POST /conversations/:id/messages'],
       contacts: ['GET /admin/contacts', 'GET /admin/contacts/:id', 'PATCH /admin/contacts/:id'],
       cms: ['GET|PUT /admin/site', 'GET|PUT /admin/socials', 'GET|PUT /admin/theme', 'GET|PUT /admin/pages', 'GET|PUT /admin/policies'],
-      portfolio: ['GET|POST /admin/portfolio', 'PATCH|DELETE /admin/portfolio/:id', 'POST /admin/portfolio/upload'],
-      reels: ['GET|POST /admin/reels', 'PATCH|DELETE /admin/reels/:id', 'POST /admin/reels/upload'],
+      portfolio: ['GET|POST /admin/portfolio', 'PATCH|DELETE /admin/portfolio/:id', 'POST /admin/portfolio/upload', 'GET /admin/portfolio/analytics'],
+      reels: ['GET|POST /admin/reels', 'PATCH|DELETE /admin/reels/:id', 'POST /admin/reels/upload', 'GET /admin/reels/analytics'],
       users: ['GET /admin/users', 'PATCH /admin/users/:id'],
       publish: ['POST /admin/publish', 'GET /admin/versions', 'POST /admin/versions/:id/restore', 'GET /admin/preview'],
       security: ['GET /admin/security/dashboard', 'GET /admin/security/rate-chart', 'GET /admin/security/audit', 'POST /admin/security/sessions/:id/revoke'],
@@ -1061,6 +1076,7 @@ app.post('/api/v1/admin/reels', auth, adminOnly, (req, res) => {
   const item = {
     id,
     title: String(req.body?.title || 'Reel').trim(),
+    description: String(req.body?.description || req.body?.caption || '').trim(),
     thumb: String(req.body?.thumb || '').trim(),
     url: String(req.body?.url || '#').trim()
   };
@@ -1206,6 +1222,7 @@ app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
   const item = {
     id,
     title: String(req.body?.title || 'Reel').trim(),
+    description: String(req.body?.description || req.body?.caption || '').trim(),
     thumb: isVideo ? '' : '/media/public/' + req.file.filename,
     url: '/media/public/' + req.file.filename,
     media_type: isVideo ? 'video' : 'image',
@@ -1283,6 +1300,16 @@ app.post('/api/v1/reels/:id/like', auth, (req, res) => {
   else { db.reel_likes.push({ reel_id: id, user_id: req.user.id, at: new Date().toISOString() }); liked = true; }
   save(db);
   const likes = db.reel_likes.filter((x) => x.reel_id === id).length;
+  if (liked) {
+    const reel = (db.reels || []).find((r) => r.id === id);
+    notifyAdminEngagement('reel_like', {
+      reel_id: id,
+      title: reel?.title,
+      username: req.user.username,
+      name: req.user.name,
+      text: `${req.user.name || req.user.username} liked reel "${reel?.title || id}"`
+    });
+  }
   res.json({ liked, likes });
 });
 
@@ -1318,6 +1345,14 @@ app.post('/api/v1/reels/:id/comments', auth, (req, res) => {
   };
   db.reel_comments.push(c);
   save(db);
+  const reel = (db.reels || []).find((r) => r.id === id);
+  notifyAdminEngagement('reel_comment', {
+    reel_id: id,
+    title: reel?.title,
+    username: req.user.username,
+    name: req.user.name,
+    text: `${req.user.name || req.user.username} commented on "${reel?.title || id}": ${body.slice(0, 80)}`
+  });
   res.status(201).json({ comment: c });
 });
 
@@ -1329,6 +1364,110 @@ app.get('/api/v1/reels/:id/comments', (req, res) => {
 });
 
 
+
+
+// ——— Portfolio like / save (public optional guest) ———
+app.post('/api/v1/portfolio/:id/like', authOptional, (req, res) => {
+  const db = load();
+  const id = +req.params.id;
+  if (!(db.portfolio || []).some((x) => x.id === id)) return res.status(404).json({ error: 'Not found' });
+  const aid = actorId(req);
+  if (!aid) return res.status(400).json({ error: 'Guest id required' });
+  db.portfolio_likes = db.portfolio_likes || [];
+  const i = db.portfolio_likes.findIndex((x) => x.portfolio_id === id && x.actor === aid);
+  let liked;
+  if (i >= 0) { db.portfolio_likes.splice(i, 1); liked = false; }
+  else {
+    db.portfolio_likes.push({ portfolio_id: id, actor: aid, at: new Date().toISOString() });
+    liked = true;
+  }
+  save(db);
+  const likes = db.portfolio_likes.filter((x) => x.portfolio_id === id).length;
+  if (liked) {
+    const item = (db.portfolio || []).find((x) => x.id === id);
+    notifyAdminEngagement('portfolio_like', {
+      portfolio_id: id,
+      title: item?.title,
+      text: `Someone liked photo "${item?.title || id}"`
+    });
+  }
+  res.json({ liked, likes });
+});
+
+app.post('/api/v1/portfolio/:id/save', authOptional, (req, res) => {
+  const db = load();
+  const id = +req.params.id;
+  if (!(db.portfolio || []).some((x) => x.id === id)) return res.status(404).json({ error: 'Not found' });
+  const aid = actorId(req);
+  if (!aid) return res.status(400).json({ error: 'Guest id required' });
+  db.portfolio_saves = db.portfolio_saves || [];
+  const i = db.portfolio_saves.findIndex((x) => x.portfolio_id === id && x.actor === aid);
+  let saved;
+  if (i >= 0) { db.portfolio_saves.splice(i, 1); saved = false; }
+  else {
+    db.portfolio_saves.push({ portfolio_id: id, actor: aid, at: new Date().toISOString() });
+    saved = true;
+  }
+  save(db);
+  res.json({ saved, saves: db.portfolio_saves.filter((x) => x.portfolio_id === id).length });
+});
+
+app.post('/api/v1/reels/:id/view', authOptional, (req, res) => {
+  const db = load();
+  const id = +req.params.id;
+  const reel = (db.reels || []).find((r) => r.id === id);
+  if (!reel) return res.status(404).json({ error: 'Not found' });
+  reel.views = (reel.views || 0) + 1;
+  save(db);
+  res.json({ views: reel.views });
+});
+
+app.post('/api/v1/reels/:id/share', authOptional, (req, res) => {
+  const db = load();
+  const id = +req.params.id;
+  const reel = (db.reels || []).find((r) => r.id === id);
+  if (!reel) return res.status(404).json({ error: 'Not found' });
+  reel.shares = (reel.shares || 0) + 1;
+  save(db);
+  notifyAdminEngagement('reel_share', {
+    reel_id: id,
+    title: reel.title,
+    text: `Reel "${reel.title || id}" was shared`
+  });
+  res.json({ shares: reel.shares });
+});
+
+/** Admin: full reel analytics board */
+app.get('/api/v1/admin/reels/analytics', auth, adminOnly, (req, res) => {
+  const db = load();
+  const items = (db.reels || []).map((r) => ({
+    id: r.id,
+    title: r.title,
+    description: r.description || r.caption || '',
+    url: r.url,
+    thumb: r.thumb || r.url,
+    media_type: r.media_type || 'video',
+    views: r.views || 0,
+    shares: r.shares || 0,
+    likes: (db.reel_likes || []).filter((x) => x.reel_id === r.id).length,
+    saves: (db.reel_saves || []).filter((x) => x.reel_id === r.id).length,
+    comments: (db.reel_comments || []).filter((x) => x.reel_id === r.id).length,
+    created_at: r.created_at
+  }));
+  res.json({ items });
+});
+
+app.get('/api/v1/admin/portfolio/analytics', auth, adminOnly, (req, res) => {
+  const db = load();
+  const items = (db.portfolio || []).map((p) => ({
+    id: p.id,
+    title: p.title,
+    image: p.image,
+    likes: (db.portfolio_likes || []).filter((x) => x.portfolio_id === p.id).length,
+    saves: (db.portfolio_saves || []).filter((x) => x.portfolio_id === p.id).length
+  }));
+  res.json({ items });
+});
 
 // ——— Phase 11 Security ———
 app.get('/api/v1/admin/security/rate-chart', auth, adminOnly, (req, res) => {
@@ -1619,6 +1758,28 @@ function broadcastAdmin(payload) {
 function broadcastUser(userId, payload) {
   for (const [ws, meta] of wsClients) {
     if (meta.userId === userId) wsSend(ws, payload);
+  }
+}
+
+function notifyAdminEngagement(kind, payload) {
+  try {
+    const db = load();
+    if (!Array.isArray(db.admin_notifications)) db.admin_notifications = [];
+    const id = (db.admin_notifications.length ? db.admin_notifications[db.admin_notifications.length - 1].id : 0) + 1;
+    const row = {
+      id,
+      kind,
+      ...payload,
+      at: new Date().toISOString(),
+      read: false
+    };
+    db.admin_notifications.push(row);
+    if (db.admin_notifications.length > 200) db.admin_notifications = db.admin_notifications.slice(-150);
+    save(db);
+    broadcastAdmin({ type: 'toast', title: kind, body: payload.text || payload.title || kind });
+    broadcastAdmin({ type: 'engagement', ...row });
+  } catch (e) {
+    console.error('engagement notify', e.message);
   }
 }
 

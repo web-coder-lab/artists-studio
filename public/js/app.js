@@ -9,6 +9,15 @@ let cache = {};
 
 const $ = (id) => document.getElementById(id);
 function token() { return localStorage.getItem(TOKEN_KEY); }
+function guestId() {
+  let g = localStorage.getItem('as_guest');
+  if (!g) {
+    g = 'g_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem('as_guest', g);
+  }
+  return g;
+}
+
 function setToken(t) { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); }
 
 async function api(path, opts = {}) {
@@ -177,7 +186,11 @@ async function renderPage() {
         <article class="folio-card" data-lightbox="${i}" role="button" tabindex="0">
           <img src="${escapeHtml(it.image || it.url || '')}" alt="${escapeHtml(it.title || '')}" loading="lazy"/>
           <div class="folio-meta"><h3>${escapeHtml(it.title || '')}</h3>
-          <p>${escapeHtml(it.category || '')}${it.caption ? ' · ' + escapeHtml(it.caption) : ''}</p></div>
+          <p>${escapeHtml(it.category || '')}${it.caption ? ' · ' + escapeHtml(it.caption) : ''}</p>
+          <div class="folio-actions">
+            <button type="button" class="chip" data-plike="${it.id}">♥ <span data-plc="${it.id}">${it.likes || 0}</span></button>
+            <button type="button" class="chip" data-psave="${it.id}">Save <span data-psc="${it.id}">${it.saves || 0}</span></button>
+          </div></div>
         </article>`).join('')}</div>
       <div class="lightbox hidden" id="lightbox" aria-modal="true" role="dialog">
         <button type="button" class="lightbox-x" id="lbClose" aria-label="Close">×</button>
@@ -205,6 +218,37 @@ async function renderPage() {
     $('lbPrev')?.addEventListener('click', () => show(li - 1));
     $('lbNext')?.addEventListener('click', () => show(li + 1));
     lb?.addEventListener('click', (e) => { if (e.target === lb) lb.classList.add('hidden'); });
+    // portfolio like/save
+    root.querySelectorAll('[data-plike]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+          const id = btn.dataset.plike;
+          const r = await fetch('/api/v1/portfolio/' + id + '/like', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Guest-Id': guestId(), ...(token() ? { Authorization: 'Bearer ' + token() } : {}) },
+            body: '{}'
+          }).then((x) => x.json());
+          const el = document.querySelector('[data-plc="' + id + '"]');
+          if (el) el.textContent = r.likes || 0;
+        } catch (err) { console.error(err); }
+      });
+    });
+    root.querySelectorAll('[data-psave]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+          const id = btn.dataset.psave;
+          const r = await fetch('/api/v1/portfolio/' + id + '/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Guest-Id': guestId(), ...(token() ? { Authorization: 'Bearer ' + token() } : {}) },
+            body: '{}'
+          }).then((x) => x.json());
+          const el = document.querySelector('[data-psc="' + id + '"]');
+          if (el) el.textContent = r.saves || 0;
+        } catch (err) { console.error(err); }
+      });
+    });
     document.addEventListener('keydown', function lbKeys(e) {
       if (lb.classList.contains('hidden')) return;
       if (e.key === 'Escape') lb.classList.add('hidden');

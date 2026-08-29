@@ -25,6 +25,8 @@ const TABLES = {
   'Admin/media/media.json': 'media',
   'Admin/calls/calls.json': 'calls',
   'Admin/versions/versions.json': 'versions',
+  'Front/portfolio/likes.json': 'portfolio_likes',
+  'Front/portfolio/saves.json': 'portfolio_saves',
   'Front/reels/likes/likes.json': 'reel_likes',
   'Front/reels/comments/comments.json': 'reel_comments',
   'Front/reels/saves/saves.json': 'reel_saves',
@@ -193,7 +195,7 @@ function assembleFromFiles(files) {
       db.users = Array.isArray(raw.items) ? raw.items : Array.isArray(raw) ? raw : [];
     } else if (key === 'portfolio' || key === 'reels') {
       db[key] = Array.isArray(raw.items) ? raw.items : Array.isArray(raw) ? raw : [];
-    } else if (key === 'contacts' || key === 'conversations' || key === 'messages' || key === 'media' || key === 'calls' || key === 'versions' || key === 'reel_likes' || key === 'reel_comments' || key === 'reel_saves' || key === 'admin_notifications') {
+    } else if (key === 'contacts' || key === 'conversations' || key === 'messages' || key === 'media' || key === 'calls' || key === 'versions' || key === 'reel_likes' || key === 'reel_comments' || key === 'reel_saves' || key === 'portfolio_likes' || key === 'portfolio_saves' || key === 'admin_notifications') {
       db[key] = Array.isArray(raw.items) ? raw.items : Array.isArray(raw) ? raw : [];
     } else if (key === '_sessions') {
       db.security.sessions = Array.isArray(raw.items) ? raw.items : Array.isArray(raw) ? raw : [];
@@ -252,6 +254,8 @@ function disassemble(db) {
   out['Front/theme/theme.json'] = db.theme || {};
   out['Front/pages/pages.json'] = db.pages || {};
   out['Front/portfolio/portfolio.json'] = { items: db.portfolio || [] };
+  out['Front/portfolio/likes.json'] = { items: db.portfolio_likes || [] };
+  out['Front/portfolio/saves.json'] = { items: db.portfolio_saves || [] };
   out['Front/reels/reels.json'] = { items: db.reels || [] };
   out['Front/socials/socials.json'] = db.socials || {};
   out['Front/policies/privacy.json'] = (db.policies && db.policies.privacy) || {};

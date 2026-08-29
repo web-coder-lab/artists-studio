@@ -22,7 +22,7 @@ fun CmsScreen(api: ApiClient) {
     var tab by remember { mutableStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         ScrollableTabRow(selectedTabIndex = tab, containerColor = CardBg, contentColor = Accent, edgePadding = 8.dp) {
-            listOf("Site", "Socials", "Portfolio", "Reels", "Publish").forEachIndexed { i, label ->
+            listOf("Site", "Socials", "Portfolio", "Reels", "Upload", "Stats", "Publish").forEachIndexed { i, label ->
                 Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, fontSize = 13.sp) })
             }
         }
@@ -31,6 +31,8 @@ fun CmsScreen(api: ApiClient) {
             1 -> SocialsEditor(api)
             2 -> PortfolioList(api)
             3 -> ReelsList(api)
+            4 -> UploadHub(api)
+            5 -> AnalyticsScreen(api)
             else -> PublishPanel(api)
         }
     }
@@ -237,4 +239,18 @@ private fun CmsField(label: String, value: String, single: Boolean = true, onCha
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         singleLine = single, minLines = if (single) 1 else 3, colors = studioFieldColors()
     )
+}
+
+
+@Composable
+private fun UploadHub(api: ApiClient) {
+    var mode by remember { mutableStateOf(0) }
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = mode == 0, onClick = { mode = 0 }, label = { Text("Photo") })
+            FilterChip(selected = mode == 1, onClick = { mode = 1 }, label = { Text("Reel") })
+        }
+        if (mode == 0) UploadPhotoScreen(api) {}
+        else UploadReelScreen(api) {}
+    }
 }

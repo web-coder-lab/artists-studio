@@ -188,3 +188,9 @@ main{flex:1;width:100%}
 html.needs-auth body > main,
 html.open-site body > main,
 body.locked main{visibility:visible!important;pointer-events:auto!important}
+.folio-actions{display:flex;gap:8px;margin-top:10px}
+.chip{
+  border:1px solid var(--line);background:var(--bg-soft);color:var(--muted);
+  border-radius:999px;padding:6px 12px;font-size:.78rem;cursor:pointer;
+}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
