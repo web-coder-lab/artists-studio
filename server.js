@@ -1423,7 +1423,9 @@ app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
   const db = load();
   if (db._seq.reels == null) db._seq.reels = (db.reels || []).length;
   const id = ++db._seq.reels;
-  const isVideo = (req.file.mimetype || '').startsWith('video/');
+  const name = (req.file.originalname || req.file.filename || '').toLowerCase();
+  const mime = (req.file.mimetype || '').toLowerCase();
+  const isVideo = mime.startsWith('video/') || /\.(mp4|webm|mov|m4v|3gp|mkv|avi)$/i.test(name) || /\.(mp4|webm|mov|m4v|3gp|mkv|avi)$/i.test(req.file.filename || '');
   const item = {
     id,
     title: String(req.body?.title || 'Reel').trim(),
@@ -1431,6 +1433,7 @@ app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
     thumb: isVideo ? '' : '/media/public/' + req.file.filename,
     url: '/media/public/' + req.file.filename,
     media_type: isVideo ? 'video' : 'image',
+    size: req.file.size || 0,
     likes: 0,
     saves: 0,
     comments_count: 0,

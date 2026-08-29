@@ -9,8 +9,8 @@ android {
         applicationId = "com.artistsstudio.admin"
         minSdk = 26
         targetSdk = 34
-        versionCode = 9
-        versionName = "1.0.1"
+        versionCode = 10
+        versionName = "1.0.2"
         buildConfigField("String", "API_BASE", "\"https://artists-studio.onrender.com/api/v1/\"")
         buildConfigField("String", "ADMIN_KEY", "\"StudioAdminKey-2026-ChangeMe\"")
         buildConfigField("String", "SITE_BASE", "\"https://artists-studio.onrender.com\"")
