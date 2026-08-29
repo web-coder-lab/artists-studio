@@ -10,7 +10,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "0.4.0-phase4"
+        versionName = "0.5.0-phase5"
         buildConfigField("String", "API_BASE", "\"https://artists-studio.onrender.com/api/v1/\"")
         buildConfigField("String", "ADMIN_KEY", "\"StudioAdminKey-2026-ChangeMe\"")
         buildConfigField("String", "SITE_BASE", "\"https://artists-studio.onrender.com\"")

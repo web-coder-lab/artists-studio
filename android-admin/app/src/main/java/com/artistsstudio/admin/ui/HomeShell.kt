@@ -9,10 +9,6 @@ import androidx.compose.ui.unit.sp
 import com.artistsstudio.admin.data.ApiClient
 import com.artistsstudio.admin.ui.theme.*
 
-/**
- * Phase 4 shell — Home tab = Dashboard.
- * Other tabs placeholders until later phases.
- */
 @Composable
 fun HomeShell(api: ApiClient) {
     var tab by remember { mutableStateOf(0) }
@@ -45,7 +41,8 @@ fun HomeShell(api: ApiClient) {
         Box(Modifier.padding(pad)) {
             when (tab) {
                 0 -> DashboardScreen(api)
-                else -> PlaceholderScreen(labels[tab], "Phase ${tab + 4} — coming next")
+                2 -> StudioHub(api)
+                else -> PlaceholderScreen(labels[tab], "Phase ${if (tab == 1) 6 else 7} — next")
             }
         }
     }
