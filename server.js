@@ -353,7 +353,7 @@ app.get('/api/v1/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'artists-studio',
-    phase: 'admin-api-2',
+    phase: 'admin-api-3',
     admin_ui: false,
     admin_auth: 'X-Admin-Key',
     build: 'admin-panel',
@@ -377,6 +377,8 @@ app.get('/api/v1/pages/:slug', authOptional, (req, res) => {
 
 function actorId(req) {
   if (req.user && req.user.id) return 'u:' + req.user.id;
+  const mobile = String(req.headers['x-mobile'] || req.body?.mobile || '').replace(/\D/g, '').slice(-15);
+  if (mobile.length >= 10) return 'm:' + mobile;
   const g = String(req.headers['x-guest-id'] || req.body?.guest_id || '').trim().slice(0, 64);
   return g ? 'g:' + g : null;
 }
@@ -1007,6 +1009,8 @@ app.get('/api/v1/admin/catalog', auth, adminOnly, (_req, res) => {
       cms: ['GET|PUT /admin/content', 'GET|PUT /admin/site', 'GET|PUT /admin/socials', 'GET|PUT /admin/theme', 'GET|PUT /admin/pages', 'GET|PUT /admin/policies'],
       portfolio: ['GET|POST /admin/portfolio', 'PATCH|DELETE /admin/portfolio/:id', 'POST /admin/portfolio/upload', 'GET /admin/portfolio/analytics'],
       reels: ['GET|POST /admin/reels', 'PATCH|DELETE /admin/reels/:id', 'POST /admin/reels/upload', 'GET /admin/reels/analytics'],
+      visitors: ['GET /admin/visitors', 'POST /visitor/register', 'POST /visitor/restore'],
+      queue: ['GET /admin/upload-queue', 'POST /admin/upload-queue/:id/retry'],
       users: ['GET /admin/users', 'PATCH /admin/users/:id'],
       publish: ['POST /admin/publish', 'GET /admin/versions', 'POST /admin/versions/:id/restore', 'GET /admin/preview'],
       security: ['GET /admin/security/dashboard', 'GET /admin/security/rate-chart', 'GET /admin/security/audit', 'POST /admin/security/sessions/:id/revoke'],
@@ -1239,7 +1243,9 @@ app.patch('/api/v1/admin/portfolio/:id', auth, adminOnly, (req, res) => {
 
 app.delete('/api/v1/admin/portfolio/:id', auth, adminOnly, (req, res) => {
   const db = load();
-  db.portfolio = (db.portfolio || []).filter((x) => x.id !== +req.params.id);
+  const id = +req.params.id;
+  db.portfolio = (db.portfolio || []).filter((x) => x.id !== id);
+  pushLog(db, { type: 'media', action: 'portfolio_delete', id, by: req.user && req.user.username });
   db.draft = snapshotConfig(db);
   save(db);
   res.json({ ok: true });
@@ -1264,7 +1270,9 @@ app.post('/api/v1/admin/reels', auth, adminOnly, (req, res) => {
 
 app.delete('/api/v1/admin/reels/:id', auth, adminOnly, (req, res) => {
   const db = load();
-  db.reels = (db.reels || []).filter((x) => x.id !== +req.params.id);
+  const id = +req.params.id;
+  db.reels = (db.reels || []).filter((x) => x.id !== id);
+  pushLog(db, { type: 'media', action: 'reel_delete', id, by: req.user && req.user.username });
   db.draft = snapshotConfig(db);
   save(db);
   res.json({ ok: true });
@@ -1318,6 +1326,7 @@ app.post('/api/v1/admin/publish', auth, adminOnly, (req, res) => {
   };
   db.versions.push(version);
   db.draft = null;
+  pushLog(db, { type: 'publish', action: 'publish', version: id, by: req.user && req.user.username });
   db.published_at = version.created_at;
   // live config is already db fields
   save(db);
@@ -1376,9 +1385,10 @@ app.post('/api/v1/admin/portfolio/upload', auth, adminOnly, (req, res, next) => 
   };
   db.portfolio = db.portfolio || [];
   db.portfolio.push(item);
+  pushLog(db, { type: 'media', action: 'portfolio_upload', id: item.id, title: item.title, by: req.user && req.user.username });
   db.draft = typeof snapshotConfig === 'function' ? snapshotConfig(db) : db.draft;
   save(db);
-  res.status(201).json({ item });
+  res.status(201).json({ item, ok: true });
 });
 
 app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
@@ -1410,9 +1420,10 @@ app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
   };
   db.reels = db.reels || [];
   db.reels.push(item);
+  pushLog(db, { type: 'media', action: 'reel_upload', id: item.id, title: item.title, by: req.user && req.user.username });
   db.draft = typeof snapshotConfig === 'function' ? snapshotConfig(db) : db.draft;
   save(db);
-  res.status(201).json({ item });
+  res.status(201).json({ item, ok: true });
 });
 
 // Reels engagement
@@ -1542,6 +1553,74 @@ app.get('/api/v1/reels/:id/comments', (req, res) => {
 
 
 
+
+// ——— Visitors (mobile profile in DB — no browser cookies) ———
+function normMobile(m) {
+  return String(m || '').replace(/\D/g, '').slice(-15);
+}
+
+function ensureVisitors(db) {
+  if (!db.visitors || typeof db.visitors !== 'object') db.visitors = {};
+  return db.visitors;
+}
+
+app.post('/api/v1/visitor/register', (req, res) => {
+  const mobile = normMobile(req.body?.mobile);
+  if (mobile.length < 10) return res.status(400).json({ error: 'Valid mobile required' });
+  const db = load();
+  const vs = ensureVisitors(db);
+  if (!vs[mobile]) {
+    vs[mobile] = {
+      mobile,
+      portfolio_likes: [],
+      portfolio_saves: [],
+      reel_likes: [],
+      reel_saves: [],
+      created_at: new Date().toISOString(),
+      last_seen: new Date().toISOString()
+    };
+  } else {
+    vs[mobile].last_seen = new Date().toISOString();
+  }
+  save(db);
+  res.json({ ok: true, mobile, profile: vs[mobile] });
+});
+
+app.post('/api/v1/visitor/restore', (req, res) => {
+  const mobile = normMobile(req.body?.mobile);
+  if (mobile.length < 10) return res.status(400).json({ error: 'Valid mobile required' });
+  const db = load();
+  const vs = ensureVisitors(db);
+  const profile = vs[mobile];
+  if (!profile) return res.status(404).json({ error: 'No profile for this mobile' });
+  profile.last_seen = new Date().toISOString();
+  save(db);
+  res.json({ ok: true, mobile, profile });
+});
+
+app.get('/api/v1/admin/visitors', auth, adminOnly, (req, res) => {
+  const db = load();
+  const vs = ensureVisitors(db);
+  const items = Object.values(vs).sort((a, b) => String(b.last_seen || '').localeCompare(String(a.last_seen || '')));
+  res.json({ items, count: items.length });
+});
+
+app.get('/api/v1/admin/upload-queue', auth, adminOnly, (req, res) => {
+  const db = load();
+  res.json({ items: db.upload_queue || [], note: 'Failed uploads appear here for retry' });
+});
+
+app.post('/api/v1/admin/upload-queue/:id/retry', auth, adminOnly, (req, res) => {
+  const db = load();
+  const q = db.upload_queue || [];
+  const item = q.find((x) => String(x.id) === String(req.params.id));
+  if (!item) return res.status(404).json({ error: 'Not found' });
+  item.status = 'pending';
+  item.updated_at = new Date().toISOString();
+  save(db);
+  res.json({ ok: true, item });
+});
+
 // ——— Portfolio like / save (public optional guest) ———
 app.post('/api/v1/portfolio/:id/like', authOptional, (req, res) => {
   const db = load();
@@ -1559,6 +1638,17 @@ app.post('/api/v1/portfolio/:id/like', authOptional, (req, res) => {
   }
   save(db);
   const likes = db.portfolio_likes.filter((x) => x.portfolio_id === id).length;
+  if (aid && aid.startsWith('m:')) {
+    const mobile = aid.slice(2);
+    const vs = ensureVisitors(db);
+    if (!vs[mobile]) {
+      vs[mobile] = { mobile, portfolio_likes: [], portfolio_saves: [], reel_likes: [], reel_saves: [], created_at: new Date().toISOString(), last_seen: new Date().toISOString() };
+    }
+    const set = new Set(vs[mobile].portfolio_likes || []);
+    if (liked) set.add(id); else set.delete(id);
+    vs[mobile].portfolio_likes = [...set];
+    vs[mobile].last_seen = new Date().toISOString();
+  }
   if (liked) {
     const item = (db.portfolio || []).find((x) => x.id === id);
     notifyAdminEngagement('portfolio_like', {

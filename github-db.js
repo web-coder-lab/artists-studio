@@ -19,6 +19,8 @@ const TABLES = {
   'Admin/security/locks.json': '_locks',
   'Admin/security/failed_logins.json': '_failed_logins',
   'Admin/notifications/notifications.json': 'admin_notifications',
+  'Admin/visitors/visitors.json': 'visitors',
+  'Admin/logs/logs.json': 'admin_logs',
   'Admin/contacts/contacts.json': 'contacts',
   'Admin/conversations/conversations.json': 'conversations',
   'Admin/messages/messages.json': 'messages',
@@ -213,6 +215,10 @@ function assembleFromFiles(files) {
     } else if (key === '_policy_terms') {
       db.policies = db.policies || {};
       db.policies.terms = raw;
+    } else if (key === 'visitors') {
+      db.visitors = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw.profiles || raw) : {};
+    } else if (key === 'admin_logs') {
+      db.admin_logs = Array.isArray(raw.items) ? raw.items : Array.isArray(raw) ? raw : [];
     } else if (key === '_admin_credentials') {
       db._admin_credentials = raw || null;
     } else if (key === '_seq') {
@@ -241,6 +247,8 @@ function disassemble(db) {
   out['Admin/security/locks.json'] = { locks: (db.security && db.security.locks) || {} };
   out['Admin/security/failed_logins.json'] = { items: (db.security && db.security.failed_logins) || [] };
   out['Admin/notifications/notifications.json'] = { items: db.admin_notifications || [] };
+  out['Admin/visitors/visitors.json'] = { profiles: db.visitors || {} };
+  out['Admin/logs/logs.json'] = { items: db.admin_logs || [] };
   out['Admin/contacts/contacts.json'] = { items: db.contacts || [] };
   out['Admin/conversations/conversations.json'] = { items: db.conversations || [] };
   out['Admin/messages/messages.json'] = { items: db.messages || [] };
