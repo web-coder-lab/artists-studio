@@ -3,25 +3,20 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <meta name="theme-color" content="#0a0a0b"/>
-  <meta name="description" content="Contact Artist's Studio via WhatsApp, Instagram, or Email."/>
+  <meta name="theme-color" content="#070708"/>
   <title>Contact — Artist's Studio</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/css/studio.css"/>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
 </head>
 <body data-page="contact">
   <div class="grain" aria-hidden="true"></div>
   <div id="site-nav"></div>
-  <main class="wrap" style="max-width:520px;margin:0 auto;padding:32px 16px 80px">
+  <main class="wrap" style="max-width:480px">
     <p class="eyebrow">Connect</p>
-    <h1 style="font-family:Cormorant Garamond,serif;font-weight:500;font-size:2.2rem;margin:8px 0 12px">Get in touch</h1>
-    <p class="muted" style="margin-bottom:28px">Message the studio on WhatsApp, Instagram, or email. No in-app chat.</p>
-    <div id="channels" class="channel-grid">
-      <p class="muted">Loading…</p>
-    </div>
+    <h1 style="font-family:Cormorant Garamond,serif;font-weight:500;font-size:clamp(2rem,5vw,2.6rem);margin:10px 0 12px">Get in touch</h1>
+    <p class="muted" style="margin:0 0 28px;line-height:1.65">Reach the studio on WhatsApp, Instagram, or email. No account required.</p>
+    <div id="channels" class="channel-grid"><p class="muted">Loading…</p></div>
   </main>
   <div id="site-foot"></div>
   <div id="site-modals"></div>
@@ -37,28 +32,10 @@
         const email = s.email || '';
         const ig = s.instagram || '';
         const cards = [];
-        if (wa) {
-          cards.push(`<a class="channel-card" href="https://wa.me/${wa}" target="_blank" rel="noopener">
-            <span class="channel-ico">WA</span>
-            <span class="channel-label">WhatsApp</span>
-            <span class="channel-sub">Chat on WhatsApp</span>
-          </a>`);
-        }
-        if (ig) {
-          cards.push(`<a class="channel-card" href="${ig.replace(/"/g,'')}" target="_blank" rel="noopener">
-            <span class="channel-ico">IG</span>
-            <span class="channel-label">Instagram</span>
-            <span class="channel-sub">Open profile</span>
-          </a>`);
-        }
-        if (email) {
-          cards.push(`<a class="channel-card" href="mailto:${email.replace(/"/g,'')}" target="_blank" rel="noopener">
-            <span class="channel-ico">@</span>
-            <span class="channel-label">Gmail</span>
-            <span class="channel-sub">${email.replace(/</g,'')}</span>
-          </a>`);
-        }
-        root.innerHTML = cards.length ? cards.join('') : '<p class="muted">Channels not configured yet.</p>';
+        if (wa) cards.push(`<a class="channel-card" href="https://wa.me/${wa}" target="_blank" rel="noopener"><span class="channel-ico">WHATSAPP</span><span class="channel-label">WhatsApp</span><span class="channel-sub">Message the studio</span></a>`);
+        if (ig) cards.push(`<a class="channel-card" href="${ig.replace(/"/g,'')}" target="_blank" rel="noopener"><span class="channel-ico">INSTAGRAM</span><span class="channel-label">Instagram</span><span class="channel-sub">Open profile</span></a>`);
+        if (email) cards.push(`<a class="channel-card" href="mailto:${email.replace(/"/g,'')}"><span class="channel-ico">EMAIL</span><span class="channel-label">Gmail</span><span class="channel-sub">${email.replace(/</g,'')}</span></a>`);
+        root.innerHTML = cards.length ? cards.join('') : '<p class="muted">Channels coming soon.</p>';
       } catch (e) {
         root.innerHTML = '<p class="muted">Could not load channels.</p>';
       }

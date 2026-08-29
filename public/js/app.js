@@ -64,49 +64,15 @@ function footHtml() {
 }
 
 function modalsHtml() {
-  return `
-  <div class="modal hidden" id="authModal" role="dialog" aria-modal="true">
-    <div class="modal-backdrop" data-close></div>
-    <div class="modal-card">
-      <button type="button" class="modal-x" data-close aria-label="Close">×</button>
-      <h2 id="authTitle">Sign in</h2>
-      <p class="muted" id="authSub">Welcome back to the studio.</p>
-      <form id="authForm" class="form">
-        <label><span>Username</span><input name="username" autocomplete="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+"/></label>
-        <label id="nameField" class="hidden"><span>Name</span><input name="name" autocomplete="name" minlength="2" maxlength="60"/></label>
-        <label><span>Password</span><input name="password" type="password" required minlength="6"/></label>
-        <p class="form-error hidden" id="authError"></p>
-        <button type="submit" class="btn btn-block" id="authSubmit">Sign in</button>
-      </form>
-      <p class="switch"><button type="button" class="linkish" id="authSwitch">Need an account? Join</button></p>
-    </div>
-  </div>
-  <div class="modal hidden" id="waModal" role="dialog" aria-modal="true">
-    <div class="modal-backdrop" data-wa-close></div>
-    <div class="modal-card">
-      <button type="button" class="modal-x" data-wa-close aria-label="Close">×</button>
-      <h2>Before you continue</h2>
-      <p class="wa-warn">Please don’t remove <strong>Name</strong> / <strong>Username</strong> from the WhatsApp message. The studio needs them to recognise you.</p>
-      <pre class="wa-preview" id="waPreview"></pre>
-      <div class="wa-actions">
-        <button type="button" class="btn btn-ghost" data-wa-close>Cancel</button>
-        <button type="button" class="btn" id="waConfirm">OK, Open WhatsApp</button>
-      </div>
-    </div>
-  </div>`;
+  return '';
 }
 
 function renderNavAuth() {
-  const nav = $('navActions');
-  if (!nav) return;
-  if (!currentUser) {
-    nav.innerHTML = `<button type="button" class="linkish" data-open="login">Sign in</button>
-      <button type="button" class="btn btn-sm" data-open="register">Join</button>`;
-    return;
-  }
-  nav.innerHTML = `<a class="linkish" href="/account.html">@${escapeHtml(currentUser.username)}</a>
-    <button type="button" class="btn btn-sm btn-ghost" id="navLogout">Sign out</button>`;
-  $('navLogout')?.addEventListener('click', logout);
+  const el = $('navActions');
+  if (!el) return;
+  el.innerHTML = `<button type="button" class="theme-toggle" id="themeToggle" title="Theme" aria-label="Toggle theme">◐</button>
+    <a class="btn btn-sm" href="/contact.html">Contact</a>`;
+  $('themeToggle')?.addEventListener('click', toggleTheme);
 }
 
 function openModal(m) {
@@ -267,9 +233,9 @@ async function renderPage() {
         <article><h3>${escapeHtml(policies[k].title || k)}</h3><p>${escapeHtml(policies[k].body || '')}</p></article>`).join('')}</div>`;
   } else if (page === 'account') {
     if (!currentUser) {
-      root.innerHTML = `<div class="page-hero"><p class="eyebrow">Account</p><h1>Sign in required</h1>
-        <p class="lede">Create an account or sign in to open your dashboard.</p>
-        <button type="button" class="btn" data-open="login">Sign in</button></div>`;
+      root.innerHTML = `<div class="page-hero"><p class="eyebrow">Contact</p><h1>Reach the studio</h1>
+        <p class="muted">WhatsApp, Instagram, or email — no account needed.</p>
+        <a class="btn" href="/contact.html">Open contact</a></div>`;
     } else {
       root.innerHTML = `<div class="page-hero"><p class="eyebrow">Welcome</p>
         <h1>${escapeHtml(currentUser.name)}</h1>
@@ -450,7 +416,7 @@ async function boot() {
   const modals = $('site-modals');
   if (nav) nav.outerHTML = navHtml();
   if (foot) foot.outerHTML = footHtml();
-  if (modals) modals.innerHTML = ''; // no login/register modals
+  if (modals) modals.innerHTML = '';
   bindGlobal();
   // optional session — never required for browsing
   try { await refreshSession(); } catch (_) {}
