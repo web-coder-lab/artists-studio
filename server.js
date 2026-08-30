@@ -265,7 +265,67 @@ const adminLimiter = rateLimit({
 
 // Apply global API throttle (APK + site share this; 120/min is enough)
 app.use('/api/', apiLimiter);
+
 app.use('/api/v1/admin', adminLimiter);
+
+/* ——— Phase 4: math CAPTCHA (public writes; admin key skips) ——— */
+const captchaStore = new Map(); // id → { answer, exp }
+const CAPTCHA_TTL_MS = 5 * 60 * 1000;
+
+function issueCaptcha() {
+  const a = 1 + Math.floor(Math.random() * 9);
+  const b = 1 + Math.floor(Math.random() * 9);
+  const id = crypto.randomBytes(16).toString('hex');
+  captchaStore.set(id, { answer: a + b, exp: Date.now() + CAPTCHA_TTL_MS });
+  // prune occasionally
+  if (captchaStore.size > 2000) {
+    const now = Date.now();
+    for (const [k, v] of captchaStore) {
+      if (v.exp < now) captchaStore.delete(k);
+    }
+  }
+  return { id, question: `${a} + ${b}`, expires_in: 300 };
+}
+
+function verifyCaptcha(id, answer) {
+  if (!id) return false;
+  const row = captchaStore.get(String(id));
+  if (!row) return false;
+  captchaStore.delete(String(id)); // one-time
+  if (Date.now() > row.exp) return false;
+  const n = Number(answer);
+  if (!Number.isFinite(n)) return false;
+  return n === row.answer;
+}
+
+function hasValidAdminKeyHeader(req) {
+  const headerKey = req.headers['x-admin-key'] ? String(req.headers['x-admin-key']).trim() : '';
+  if (headerKey && typeof adminKeyEqual === 'function' && adminKeyEqual(headerKey)) return true;
+  const bearer = String(req.headers.authorization || '').startsWith('Bearer ')
+    ? String(req.headers.authorization).slice(7).trim()
+    : '';
+  if (bearer && typeof adminKeyEqual === 'function' && adminKeyEqual(bearer)) return true;
+  return false;
+}
+
+/** Require math captcha unless valid admin key (APK safe) */
+function requireCaptcha(req, res, next) {
+  if (hasValidAdminKeyHeader(req) || req.adminKeyAuth) return next();
+  const id = req.headers['x-captcha-id'] || req.body?.captcha_id || req.query?.captcha_id;
+  const answer = req.headers['x-captcha-answer'] || req.body?.captcha_answer || req.query?.captcha_answer;
+  if (!verifyCaptcha(id, answer)) {
+    return res.status(400).json({ error: 'Captcha required or invalid', captcha_required: true });
+  }
+  next();
+}
+
+app.get('/api/v1/captcha', apiLimiter, (_req, res) => {
+  res.json(issueCaptcha());
+});
+app.get('/api/v1/captcha/new', apiLimiter, (_req, res) => {
+  res.json(issueCaptcha());
+});
+
 
 
 function parseCookies(req) {
@@ -657,7 +717,7 @@ app.get('/api/v1/whatsapp-prefill', authOptional, (req, res) => {
 
 
 // ——— Contact form (Phase 3) ———
-app.post('/api/v1/contact', contactLimiter, authOptional, (_req, res) => {
+app.post('/api/v1/contact', contactLimiter, requireCaptcha, authOptional, (_req, res) => {
   return res.status(410).json({ error: 'Use WhatsApp, Instagram, or email on the Contact page.' });
 });
 app.post('/api/v1/contact_disabled', contactLimiter, authOptional, (req, res) => {
@@ -1765,7 +1825,7 @@ app.post('/api/v1/reels/:id/save', engageLimiter, auth, (req, res) => {
   res.json({ saved, saves: db.reel_saves.filter((x) => x.reel_id === id).length });
 });
 
-app.post('/api/v1/reels/:id/comments', auth, (req, res) => {
+app.post('/api/v1/reels/:id/comments', engageLimiter, requireCaptcha, auth, (req, res) => {
   const body = String(req.body?.body || '').trim();
   if (!body) return res.status(400).json({ error: 'Comment required' });
   const db = load();
@@ -1816,7 +1876,7 @@ function ensureVisitors(db) {
   return db.visitors;
 }
 
-app.post('/api/v1/visitor/register', (req, res) => {
+app.post('/api/v1/visitor/register', engageLimiter, requireCaptcha, (req, res) => {
   const mobile = normMobile(req.body?.mobile);
   if (mobile.length < 10) return res.status(400).json({ error: 'Valid mobile required' });
   const db = load();
@@ -1838,7 +1898,7 @@ app.post('/api/v1/visitor/register', (req, res) => {
   res.json({ ok: true, mobile, profile: vs[mobile] });
 });
 
-app.post('/api/v1/visitor/restore', (req, res) => {
+app.post('/api/v1/visitor/restore', engageLimiter, requireCaptcha, (req, res) => {
   const mobile = normMobile(req.body?.mobile);
   if (mobile.length < 10) return res.status(400).json({ error: 'Valid mobile required' });
   const db = load();

@@ -19,9 +19,10 @@
 - Upload magic-byte check → 400
 - Failed admin key audit log
 
-## Phase 4 — CAPTCHA
-- Math CAPTCHA public writes
-- Admin key skips CAPTCHA (APK safe)
+## Phase 4 — CAPTCHA (DONE)
+- GET /api/v1/captcha + /captcha/new
+- requireCaptcha on visitor/contact/comments
+- Admin X-Admin-Key skips CAPTCHA (APK safe)
 
 ## Phase 5 — Database (no migrate)
 - Path allowlist writes
