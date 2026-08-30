@@ -162,6 +162,45 @@ async function compressImageIfNeeded(filePath, mime) {
   }
 }
 
+
+/** Phase 3 — basic magic-byte / extension consistency for uploads */
+function assertSafeUpload(file) {
+  if (!file || !file.path) throw new Error('No file');
+  const name = String(file.originalname || file.filename || '').toLowerCase();
+  const mime = String(file.mimetype || '').toLowerCase();
+  const buf = Buffer.alloc(16);
+  const fd = fs.openSync(file.path, 'r');
+  try {
+    fs.readSync(fd, buf, 0, 16, 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+  const isPng = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+  const isJpg = buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+  const isGif = buf.slice(0, 3).toString() === 'GIF';
+  const isWebp = buf.slice(0, 4).toString() === 'RIFF' && buf.slice(8, 12).toString() === 'WEBP';
+  const isMp4 = buf.slice(4, 8).toString() === 'ftyp' || (buf[0] === 0 && buf[4] === 0x66);
+  const isWebm = buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3;
+  const looksImage = isPng || isJpg || isGif || isWebp;
+  const looksVideo = isMp4 || isWebm || mime.startsWith('video/');
+  if (mime.startsWith('image/') || /\.(jpe?g|png|gif|webp)$/i.test(name)) {
+    if (!looksImage && !mime.includes('heic') && !mime.includes('heif')) {
+      throw new Error('File content does not match an image');
+    }
+  }
+  if (mime.startsWith('video/') || /\.(mp4|webm|mov|m4v|3gp)$/i.test(name)) {
+    // MOV/3GP often lack simple magic — allow declared video mime with video extension
+    if (!looksVideo && !/\.(mov|m4v|3gp|mkv|avi)$/i.test(name) && !mime.startsWith('video/')) {
+      throw new Error('File content does not match a video');
+    }
+  }
+  // Block executable signatures
+  if (buf.slice(0, 2).toString() === 'MZ' || buf.slice(0, 4).toString('hex') === '7f454c46') {
+    throw new Error('Executable files are not allowed');
+  }
+  return true;
+}
+
 const uploadPublic = multer({
   storage: publicStorage,
   limits: { fileSize: 120 * 1024 * 1024, files: 1 },
@@ -290,13 +329,72 @@ function authOptional(req, _res, next) {
 /** Admin app key (no login UI). Header: X-Admin-Key or Authorization: Bearer <ADMIN_KEY> */
 const ADMIN_KEY = process.env.ADMIN_KEY || process.env.STUDIO_ADMIN_KEY || 'StudioAdminKey-2026-ChangeMe';
 
+/** In-memory failed admin-key attempts (IP → {count, until}) */
+const adminFailMap = new Map();
+const ADMIN_FAIL_MAX = 12;
+const ADMIN_FAIL_WINDOW_MS = 15 * 60 * 1000;
+
+function adminKeyEqual(provided) {
+  try {
+    const a = Buffer.from(String(provided || ''));
+    const b = Buffer.from(String(ADMIN_KEY || ''));
+    if (a.length !== b.length) {
+      // still do a compare to reduce trivial timing leaks on length
+      crypto.timingSafeEqual(b, b);
+      return false;
+    }
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+function noteAdminKeyFail(req) {
+  const ip = sec.clientIp(req) || 'unknown';
+  const now = Date.now();
+  let row = adminFailMap.get(ip);
+  if (!row || now > row.until) row = { count: 0, until: now + ADMIN_FAIL_WINDOW_MS };
+  row.count += 1;
+  row.until = now + ADMIN_FAIL_WINDOW_MS;
+  adminFailMap.set(ip, row);
+  try {
+    const db = load();
+    sec.audit(db, { action: 'admin_key_failed', ip, path: req.path, count: row.count });
+    save(db);
+  } catch (_) {}
+  return row;
+}
+
+function adminKeyBlocked(req) {
+  const ip = sec.clientIp(req) || 'unknown';
+  const row = adminFailMap.get(ip);
+  if (!row) return false;
+  if (Date.now() > row.until) {
+    adminFailMap.delete(ip);
+    return false;
+  }
+  return row.count >= ADMIN_FAIL_MAX;
+}
+
 function tryAdminKey(req) {
-  const key =
-    req.headers['x-admin-key'] ||
-    (String(req.headers.authorization || '').startsWith('Bearer ')
-      ? String(req.headers.authorization).slice(7).trim()
-      : '');
-  if (!key || key !== ADMIN_KEY) return false;
+  const headerKey = req.headers['x-admin-key'] ? String(req.headers['x-admin-key']).trim() : '';
+  const bearer = String(req.headers.authorization || '').startsWith('Bearer ')
+    ? String(req.headers.authorization).slice(7).trim()
+    : '';
+  // Explicit X-Admin-Key: failures count toward lockout
+  if (headerKey) {
+    if (adminKeyBlocked(req)) return false;
+    if (!adminKeyEqual(headerKey)) {
+      noteAdminKeyFail(req);
+      return false;
+    }
+  } else if (bearer && adminKeyEqual(bearer)) {
+    // Bearer matches admin key (APK may use either form)
+    if (adminKeyBlocked(req)) return false;
+  } else {
+    return false; // JWT or missing — not an admin-key attempt
+  }
+  adminFailMap.delete(sec.clientIp(req) || 'unknown');
   req.user = {
     id: 0,
     username: 'admin',
@@ -311,9 +409,13 @@ function tryAdminKey(req) {
 
 function auth(req, res, next) {
   if (tryAdminKey(req)) return next();
+  if (req.headers['x-admin-key'] && adminKeyBlocked(req)) {
+    return res.status(429).json({ error: 'Too many failed admin attempts. Try later.' });
+  }
   const h = req.headers.authorization || '';
   const token = h.startsWith('Bearer ') ? h.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  // If token equals failed admin key path already handled; try JWT
   try {
     const payload = jwt.verify(token, JWT_SECRET_EFFECTIVE);
     const db = load();
@@ -1499,6 +1601,11 @@ app.post('/api/v1/admin/portfolio/upload', uploadLimiter, auth, adminOnly, (req,
     try { req.file.path = await compressImageIfNeeded(req.file.path, req.file.mimetype); req.file.filename = path.basename(req.file.path); } catch (_) {}
   }
   if (!req.file) return res.status(400).json({ error: 'Image file required' });
+  try { assertSafeUpload(req.file); } catch (e) {
+    try { fs.unlinkSync(req.file.path); } catch (_) {}
+    return res.status(400).json({ error: e.message || 'Invalid file' });
+  }
+
   const db = load();
   db.portfolio = db.portfolio || [];
   const id = nextMediaId(db, 'portfolio', db.portfolio);
@@ -1534,6 +1641,11 @@ app.post('/api/v1/admin/reels/upload', uploadLimiter, auth, adminOnly, (req, res
     try { req.file.path = await compressImageIfNeeded(req.file.path, req.file.mimetype); req.file.filename = path.basename(req.file.path); } catch (_) {}
   }
   if (!req.file) return res.status(400).json({ error: 'Video/image file required — field name must be file' });
+  try { assertSafeUpload(req.file); } catch (e) {
+    try { fs.unlinkSync(req.file.path); } catch (_) {}
+    return res.status(400).json({ error: e.message || 'Invalid file' });
+  }
+
   const db = load();
   db.reels = db.reels || [];
   const id = nextMediaId(db, 'reels', db.reels);

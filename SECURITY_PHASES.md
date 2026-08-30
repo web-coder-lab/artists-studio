@@ -13,10 +13,11 @@
 - Global + route rate limits → 429
 - WAF-lite (bad UA, probe paths → 404)
 
-## Phase 3 — Admin + uploads
-- Admin key 401, optional IP 403
-- Upload MIME/size harden → 400
-- Failed admin auth counters
+## Phase 3 — Admin + uploads (DONE)
+- Admin key timing-safe compare, fail lockout → 429
+- IP allowlist via ADMIN_ALLOWED_IPS (optional)
+- Upload magic-byte check → 400
+- Failed admin key audit log
 
 ## Phase 4 — CAPTCHA
 - Math CAPTCHA public writes
