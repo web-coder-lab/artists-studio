@@ -8,8 +8,8 @@
 - HTTPS redirect behind proxy
 - robots Disallow `/api/` and probe paths
 
-## Phase 2 — Edge defense
-- Tighter CORS allowlist
+## Phase 2 — Edge defense (DONE)
+- Tighter CORS allowlist (default site origin; APK no-Origin OK)
 - Global + route rate limits → 429
 - WAF-lite (bad UA, probe paths → 404)
 

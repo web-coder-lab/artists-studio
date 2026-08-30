@@ -28,26 +28,51 @@ const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 app.use(sec.securityHeaders);
-// block easy admin URLs before static
+// Phase 2 — WAF-lite: probe paths + noisy bots (before static)
+const PROBE_PATHS = new Set([
+  '/admin', '/admin/', '/admin.html', '/_panel.html', '/login', '/login/',
+  '/wp-admin', '/wp-login.php', '/xmlrpc.php', '/.env', '/config.php',
+  '/phpmyadmin', '/administrator', '/admin/login', '/api/admin', '/api/admin/'
+]);
+const BAD_UA = [
+  'sqlmap', 'nikto', 'nmap', 'masscan', 'dirbuster', 'gobuster',
+  'wget/', 'python-requests/', 'curl/'  // curl alone still allowed for health via empty path rules below
+];
 app.use((req, res, next) => {
-  const p = (req.path || '').toLowerCase();
-  if (p === '/admin' || p === '/admin/' || p === '/admin.html' || p === '/_panel.html') {
-    return res.status(404).send('Not found');
+  const pth = (req.path || '').toLowerCase();
+  if (PROBE_PATHS.has(pth) || pth.startsWith('/wp-') || pth.startsWith('/.git')) {
+    return res.status(404).type('text/plain').send('Not found');
+  }
+  // obvious query injection probes on any path
+  const q = String(req.url || '');
+  if (/(\bunion\b.*\bselect\b|<script|javascript:|\.\.\/)/i.test(q)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const ua = String(req.headers['user-agent'] || '').toLowerCase();
+  // only block known scanners — do not block empty UA (APK may omit)
+  if (ua && (ua.includes('sqlmap') || ua.includes('nikto') || ua.includes('dirbuster') || ua.includes('gobuster') || ua.includes('nessus'))) {
+    return res.status(403).json({ error: 'Forbidden' });
   }
   next();
 });
-const CORS_ORIGINS = String(process.env.CORS_ORIGINS || '')
+const CORS_ORIGINS = String(
+  process.env.CORS_ORIGINS ||
+    'https://artists-studio.onrender.com,http://localhost:3000,http://127.0.0.1:3000'
+)
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // same-origin / curl
-    if (!CORS_ORIGINS.length) return cb(null, true); // dev default open
-    if (CORS_ORIGINS.includes(origin) || CORS_ORIGINS.includes('*')) return cb(null, true);
+    // APK / curl / same-origin: no Origin header → allow
+    if (!origin) return cb(null, true);
+    if (CORS_ORIGINS.includes('*')) return cb(null, true);
+    if (CORS_ORIGINS.includes(origin)) return cb(null, true);
     return cb(new Error('CORS blocked'));
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key', 'X-Requested-With']
 }));
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(ROOT, 'public')));
@@ -150,6 +175,7 @@ const uploadChat = multer({
 
 
 
+/* Phase 2 — rate limits */
 const contactLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -165,6 +191,42 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many attempts. Try again later.' }
 });
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Slow down.' }
+});
+
+const engageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many actions. Try later.' }
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many uploads. Try later.' }
+});
+
+const adminLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 90,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Admin rate limit. Try later.' }
+});
+
+// Apply global API throttle (APK + site share this; 120/min is enough)
+app.use('/api/', apiLimiter);
+app.use('/api/v1/admin', adminLimiter);
 
 
 function parseCookies(req) {
@@ -1422,7 +1484,7 @@ app.get('/api/v1/admin/preview', auth, adminOnly, (req, res) => {
 
 
 // ——— Gallery uploads (no external URL required) Phase 10 ———
-app.post('/api/v1/admin/portfolio/upload', auth, adminOnly, (req, res, next) => {
+app.post('/api/v1/admin/portfolio/upload', uploadLimiter, auth, adminOnly, (req, res, next) => {
   uploadPublic.single('file')(req, res, (err) => {
     if (err) {
       const msg = err.code === 'LIMIT_FILE_SIZE'
@@ -1456,7 +1518,7 @@ app.post('/api/v1/admin/portfolio/upload', auth, adminOnly, (req, res, next) => 
   res.status(201).json({ item, ok: true });
 });
 
-app.post('/api/v1/admin/reels/upload', auth, adminOnly, (req, res, next) => {
+app.post('/api/v1/admin/reels/upload', uploadLimiter, auth, adminOnly, (req, res, next) => {
   uploadPublic.single('file')(req, res, (err) => {
     if (err) {
       const msg = err.code === 'LIMIT_FILE_SIZE'
@@ -1554,7 +1616,7 @@ app.get('/api/v1/reels/:id', authOptional, (req, res) => {
   });
 });
 
-app.post('/api/v1/reels/:id/like', auth, (req, res) => {
+app.post('/api/v1/reels/:id/like', engageLimiter, auth, (req, res) => {
   const db = load();
   const id = +req.params.id;
   if (!(db.reels || []).some((r) => r.id === id)) return res.status(404).json({ error: 'Not found' });
@@ -1578,7 +1640,7 @@ app.post('/api/v1/reels/:id/like', auth, (req, res) => {
   res.json({ liked, likes });
 });
 
-app.post('/api/v1/reels/:id/save', auth, (req, res) => {
+app.post('/api/v1/reels/:id/save', engageLimiter, auth, (req, res) => {
   const db = load();
   const id = +req.params.id;
   if (!(db.reels || []).some((r) => r.id === id)) return res.status(404).json({ error: 'Not found' });
@@ -1700,7 +1762,7 @@ app.post('/api/v1/admin/upload-queue/:id/retry', auth, adminOnly, (req, res) => 
 });
 
 // ——— Portfolio like / save (public optional guest) ———
-app.post('/api/v1/portfolio/:id/like', authOptional, (req, res) => {
+app.post('/api/v1/portfolio/:id/like', engageLimiter, authOptional, (req, res) => {
   const db = load();
   const id = +req.params.id;
   if (!(db.portfolio || []).some((x) => x.id === id)) return res.status(404).json({ error: 'Not found' });
@@ -1738,7 +1800,7 @@ app.post('/api/v1/portfolio/:id/like', authOptional, (req, res) => {
   res.json({ liked, likes });
 });
 
-app.post('/api/v1/portfolio/:id/save', authOptional, (req, res) => {
+app.post('/api/v1/portfolio/:id/save', engageLimiter, authOptional, (req, res) => {
   const db = load();
   const id = +req.params.id;
   if (!(db.portfolio || []).some((x) => x.id === id)) return res.status(404).json({ error: 'Not found' });
