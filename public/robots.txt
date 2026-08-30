@@ -1,8 +1,13 @@
 User-agent: *
 Allow: /
 Disallow: /api/
-Disallow: /Hjwihebdiggeksyevkdibendkxbskjwowhdjfidvbebd
-Disallow: /_panel.html
+Disallow: /uploads/private/
+Disallow: /media/private/
 Disallow: /admin
+Disallow: /admin/
+Disallow: /login
+Disallow: /wp-admin
+Disallow: /_panel.html
+Disallow: /Hjwihebdiggeksyevkdibendkxbskjwowhdjfidvbebd
 
 Sitemap: https://artists-studio.onrender.com/sitemap.xml

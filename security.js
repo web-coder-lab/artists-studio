@@ -107,20 +107,23 @@ function revokeUserSessions(db, userId) {
   s.sessions = s.sessions.filter((x) => x.user_id !== userId);
 }
 
-function securityHeaders(_req, res, next) {
+function securityHeaders(req, res, next) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
-  res.setHeader('X-XSS-Protection', '0');
-  if (process.env.RENDER || process.env.FORCE_HSTS) {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  }
-  // light CSP
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline'; connect-src 'self' wss: https:; frame-ancestors 'none'"
+    "default-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
   );
+  // HSTS when HTTPS / behind proxy
+  const xfProto = String(req.headers['x-forwarded-proto'] || '');
+  if (xfProto === 'https' || req.secure) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  res.removeHeader('X-Powered-By');
   next();
 }
 

@@ -25,6 +25,8 @@ if (!JWT_SECRET_EFFECTIVE || JWT_SECRET_EFFECTIVE.length < 32) {
 const ROOT = __dirname;
 
 const app = express();
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
 app.use(sec.securityHeaders);
 // block easy admin URLs before static
 app.use((req, res, next) => {
@@ -50,6 +52,26 @@ app.use(cors({
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(ROOT, 'public')));
 app.use('/media/public', express.static(path.join(__dirname, 'uploads', 'public')));
+
+/* ——— Phase 1: well-known + HTTPS nudge + probe-safe static ——— */
+app.get('/.well-known/change-password', (_req, res) => {
+  res.redirect(302, '/contact.html');
+});
+app.get('/favicon.ico', (req, res, next) => {
+  const ico = path.join(ROOT, 'public', 'favicon.ico');
+  if (fs.existsSync(ico)) return res.type('image/x-icon').sendFile(ico);
+  return res.redirect(302, '/favicon.svg');
+});
+// Force HTTPS when behind proxy (Render)
+app.use((req, res, next) => {
+  const proto = String(req.headers['x-forwarded-proto'] || '');
+  if (proto && proto !== 'https' && process.env.FORCE_HTTPS !== '0') {
+    const host = req.headers.host || 'artists-studio.onrender.com';
+    return res.redirect(301, 'https://' + host + req.originalUrl);
+  }
+  next();
+});
+
 
 const uploadPrivateDir = path.join(ROOT, 'uploads', 'private');
 const uploadPublicDir = path.join(ROOT, 'uploads', 'public');
@@ -370,16 +392,10 @@ app.get('/api/v1/ping', (_req, res) => {
 });
 
 app.get('/api/v1/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'artists-studio',
-    phase: 'admin-api-3',
-    apk_phase: 4,
-    admin_ui: false,
-    admin_auth: 'X-Admin-Key',
-    build: 'admin-panel',
-    db: process.env.GITHUB_DB_TOKEN ? 'github' : (process.env.DATABASE_URL ? 'postgres' : 'file')
-  });
+  res.json({ status: 'ok', t: Date.now() });
+});
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', t: Date.now() });
 });
 
 // ——— Public CMS ———
