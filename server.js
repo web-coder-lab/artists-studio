@@ -943,6 +943,19 @@ app.get('/api/v1/admin/db-status', auth, adminOnly, (_req, res) => {
   });
 });
 
+app.get('/api/v1/admin/security/summary', auth, adminOnly, (req, res) => {
+  const db = load();
+  const s = sec.ensureSecurity(db);
+  res.json({
+    failed_logins_recent: (s.failed_logins || []).slice(0, 20),
+    locks: s.locks || {},
+    sessions_count: (s.sessions || []).length,
+    audit_recent: (s.audit || []).slice(0, 30),
+    admin_key_lockouts: typeof adminFailMap !== 'undefined' ? adminFailMap.size : 0
+  });
+});
+
+
 app.post('/api/v1/auth/logout', auth, (req, res) => {
   clearAuthCookie(res);
   res.json({ ok: true });
@@ -2305,7 +2318,11 @@ app.post('/api/v1/chat/artist_disabled', auth, (req, res) => {
 app.get(sec.ADMIN_PATH, (_req, res) => {
   res.status(404).sendFile(path.join(ROOT, 'public', '404.html'));
 });
-app.get(['/admin', '/admin.html', '/admin/', '/_panel.html'], (_req, res) => {
+app.get([
+  '/admin', '/admin.html', '/admin/', '/_panel.html',
+  '/login', '/login/', '/wp-admin', '/wp-login.php',
+  '/phpmyadmin', '/administrator', '/.env'
+], (_req, res) => {
   res.status(404).sendFile(path.join(ROOT, 'public', '404.html'));
 });
 
@@ -2323,8 +2340,26 @@ app.get('/', (_req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'index.html'));
 });
 
+// Phase 6 — no stack traces to clients
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  console.error('request error', err && err.message);
+  if (req.path && req.path.startsWith('/api/')) {
+    const status = err.status || err.statusCode || 500;
+    return res.status(status).json({ error: status >= 500 ? 'Server error' : (err.message || 'Request failed') });
+  }
+  res.status(500).sendFile(path.join(ROOT, 'public', '404.html'));
+});
+
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  res.status(404).sendFile(path.join(ROOT, 'public', '404.html'));
+});
+
+app.use((req, res) => {
+  if (req.path && req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'Not found' });
   }
   res.status(404).sendFile(path.join(ROOT, 'public', '404.html'));

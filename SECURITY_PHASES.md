@@ -30,7 +30,23 @@
 - GET /admin/db/export + /admin/backup (admin key)
 - DB stays on GitHub repo
 
-## Phase 6 — Audit + finish
-- Audit polish
-- Professional 404 for `/admin` probes
-- Final verification checklist
+## Phase 6 — Audit + finish (DONE)
+- Professional 404.html for probes (no path leak)
+- API 404 JSON only `{ error: "Not found" }`
+- Global error handler (no stacks)
+- GET /api/v1/admin/security/summary
+- Final verification checklist below
+
+### Final checklist
+| Check | Target |
+|-------|--------|
+| No admin key | 401 |
+| Wrong admin key flood | 429 |
+| IP allowlist (if set) | 403 |
+| /admin probe | 404 page |
+| Like flood | 429 |
+| Bad upload | 400 |
+| Captcha fail (public) | 400 |
+| Health | { status, t } only |
+| DB export | admin key only |
+
