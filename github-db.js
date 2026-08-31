@@ -125,8 +125,40 @@ async function readFile(rel) {
   }
 }
 
+const ALLOWED_WRITE_PREFIXES = [
+  'Admin/',
+  'Front/'
+];
+const MAX_JSON_BYTES = 1_500_000; // ~1.5MB per table file
+
+function assertAllowedRel(rel) {
+  const r = String(rel || '').replace(/^\/+/, '');
+  if (r.includes('..') || r.includes('\\')) {
+    throw new Error('DB path rejected');
+  }
+  if (!ALLOWED_WRITE_PREFIXES.some((p) => r.startsWith(p))) {
+    throw new Error('DB path not in allowlist: ' + r);
+  }
+  // must be under known root tables OR accounts/chats subpaths
+  const known = Object.keys(TABLES);
+  if (known.includes(r)) return r;
+  if (r.startsWith('Admin/users/accounts/') && r.endsWith('.json')) return r;
+  if (r.startsWith('Admin/users/chats/') && r.endsWith('.json')) return r;
+  if (known.includes(r)) return r;
+  // allow only TABLE keys + account/chat extras
+  if (!known.includes(r) && !r.startsWith('Admin/users/accounts/') && !r.startsWith('Admin/users/chats/')) {
+    throw new Error('DB path not registered: ' + r);
+  }
+  return r;
+}
+
 async function writeFile(rel, obj, message) {
-  const content = Buffer.from(JSON.stringify(obj, null, 2), 'utf8').toString('base64');
+  rel = assertAllowedRel(rel);
+  const raw = JSON.stringify(obj, null, 2);
+  if (Buffer.byteLength(raw, 'utf8') > MAX_JSON_BYTES) {
+    throw new Error('DB payload too large for ' + rel);
+  }
+  const content = Buffer.from(raw, 'utf8').toString('base64');
   const body = {
     message: message || `db: update ${rel}`,
     content,

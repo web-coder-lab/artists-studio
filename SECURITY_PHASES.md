@@ -24,11 +24,11 @@
 - requireCaptcha on visitor/contact/comments
 - Admin X-Admin-Key skips CAPTCHA (APK safe)
 
-## Phase 5 — Database (no migrate)
-- Path allowlist writes
-- Strip secrets from public API
-- JSON size/validate
-- Admin export snapshot
+## Phase 5 — Database (no migrate) (DONE)
+- writeFile path allowlist + max 1.5MB JSON
+- exportPublicSafe strips hashes/credentials
+- GET /admin/db/export + /admin/backup (admin key)
+- DB stays on GitHub repo
 
 ## Phase 6 — Audit + finish
 - Audit polish

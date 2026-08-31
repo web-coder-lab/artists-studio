@@ -271,9 +271,39 @@ async function init() {
 }
 
 function exportPublicSafe(db) {
-  const copy = JSON.parse(JSON.stringify(db));
-  // strip password hashes from export option? keep for full backup admin only
+  const copy = JSON.parse(JSON.stringify(db || {}));
+  // Phase 5 — never expose secrets on "safe" export / accidental public use
+  if (Array.isArray(copy.users)) {
+    copy.users = copy.users.map((u) => {
+      if (!u || typeof u !== 'object') return u;
+      const { password_hash, ...rest } = u;
+      return rest;
+    });
+  }
+  if (copy._admin_credentials) {
+    copy._admin_credentials = {
+      username: copy._admin_credentials.username || 'admin',
+      password: '[redacted]',
+      note: copy._admin_credentials.note || ''
+    };
+  }
+  if (copy.security) {
+    if (copy.security.sessions) {
+      copy.security.sessions = (copy.security.sessions || []).map((s) => ({
+        id: s.id,
+        username: s.username,
+        created_at: s.created_at,
+        ip: s.ip
+      }));
+    }
+  }
+  delete copy.jwt_secret;
   return copy;
 }
 
-module.exports = { load, save, init, defaultDb, exportPublicSafe, githubDb };
+/** Full backup for admin only (includes hashes — protect with admin key) */
+function exportFullBackup(db) {
+  return JSON.parse(JSON.stringify(db || {}));
+}
+
+module.exports = { load, save, init, defaultDb, exportPublicSafe, exportFullBackup, githubDb };

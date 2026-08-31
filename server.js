@@ -4,7 +4,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
-const { load, save, init: initDb, exportPublicSafe } = require('./db');
+const { load, save, init: initDb, exportPublicSafe, exportFullBackup } = require('./db');
 const sec = require('./security');
 const fs = require('fs');
 const multer = require('multer');
@@ -625,7 +625,7 @@ app.get('/health', (_req, res) => {
 // ——— Public CMS ———
 app.get('/api/v1/site', authOptional, (req, res) => {
   const db = load();
-  res.json({ site: db.site, pages: db.pages, theme: db.theme || {} });
+  res.json({ site: db.site || {}, pages: db.pages || {}, theme: db.theme || {} });
 });
 
 app.get('/api/v1/pages/:slug', authOptional, (req, res) => {
@@ -909,11 +909,22 @@ app.post('/api/v1/auth/password', auth, authLimiter, (req, res) => {
 
 app.get('/api/v1/admin/backup', auth, adminOnly, (req, res) => {
   const db = load();
-  sec.audit(db, { action: 'backup_export', username: req.user.username, ip: sec.clientIp(req) });
+  sec.audit(db, { action: 'backup_export', username: req.user && req.user.username, ip: sec.clientIp(req) });
   save(db);
-  const payload = exportPublicSafe(db);
+  const payload = typeof exportFullBackup === 'function' ? exportFullBackup(db) : db;
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Content-Disposition', 'attachment; filename="artists-studio-backup.json"');
+  res.send(JSON.stringify(payload, null, 2));
+});
+
+app.get('/api/v1/admin/db/export', auth, adminOnly, (req, res) => {
+  const db = load();
+  const mode = String(req.query.mode || 'full');
+  sec.audit(db, { action: 'db_export', mode, username: req.user && req.user.username, ip: sec.clientIp(req) });
+  save(db);
+  const payload = mode === 'safe' ? exportPublicSafe(db) : (typeof exportFullBackup === 'function' ? exportFullBackup(db) : db);
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="artists-studio-db-' + mode + '.json"');
   res.send(JSON.stringify(payload, null, 2));
 });
 
