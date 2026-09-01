@@ -479,3 +479,76 @@ html[data-theme="light"] .ch-mail .channel-ico-wrap{background:#e4eaf8;color:#2a
 .channel-label{font-weight:600;font-size:.98rem}
 .channel-sub{font-size:.82rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
 .channel-arrow{color:var(--muted);font-size:1.1rem}
+
+
+/* Contact — professional */
+.contact-main{
+  max-width:480px;
+  margin:0 auto;
+  padding:clamp(72px,12vw,100px) 20px 72px;
+}
+.contact-head{margin-bottom:28px}
+.contact-head h1{
+  font-family:var(--font-display),Georgia,serif;
+  font-weight:500;
+  font-size:clamp(2.1rem,5vw,2.75rem);
+  line-height:1.12;
+  margin:10px 0 12px;
+  letter-spacing:-.02em;
+}
+.contact-lede{
+  margin:0;
+  color:var(--muted);
+  line-height:1.65;
+  font-size:1.02rem;
+  max-width:36ch;
+}
+.channel-list{display:flex;flex-direction:column;gap:10px}
+.channel-row{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 16px 16px 14px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:color-mix(in srgb, var(--bg-soft, #121214) 88%, transparent);
+  text-decoration:none;color:var(--text);
+  transition:border-color .18s, background .18s, transform .15s;
+}
+.channel-row:hover{
+  border-color:color-mix(in srgb, var(--accent) 40%, var(--line));
+  transform:translateY(-1px);
+}
+.channel-icon{
+  width:48px;height:48px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.is-wa .channel-icon{background:rgba(37,211,102,.12);color:#25d366}
+.is-ig .channel-icon{background:rgba(225,48,108,.12);color:#e1306c}
+.is-mail .channel-icon{background:rgba(100,140,220,.14);color:#8ab4f8}
+html[data-theme="light"] .is-wa .channel-icon{background:#e6f8ee;color:#128c4a}
+html[data-theme="light"] .is-ig .channel-icon{background:#fce8f0;color:#c13584}
+html[data-theme="light"] .is-mail .channel-icon{background:#e8eefc;color:#3b6fd8}
+.channel-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.channel-name{font-weight:600;font-size:1rem;letter-spacing:.01em}
+.channel-desc{font-size:.84rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.channel-go{color:var(--muted);opacity:.7;display:flex}
+.channel-row:hover .channel-go{color:var(--accent);opacity:1}
+.contact-note{margin:28px 0 0;font-size:.88rem;line-height:1.55;max-width:36ch}
+.contact-empty{padding:24px 0;text-align:center}
+.channel-skeleton{
+  height:76px;border-radius:16px;border:1px solid var(--line);
+  background:linear-gradient(90deg, transparent, color-mix(in srgb,var(--text) 6%, transparent), transparent);
+  background-size:200% 100%;
+  animation:shimmer 1.2s ease infinite;
+}
+@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+
+/* Ensure page content clears fixed top nav */
+main#page-root, main.home, main.wrap, main.contact-main{
+  padding-top:max(24px, env(safe-area-inset-top));
+}
+body[data-page]:not([data-page="reels"]) main#page-root{
+  padding-top:72px;
+  padding-bottom:48px;
+  min-height:50vh;
+}

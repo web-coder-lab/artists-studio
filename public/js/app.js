@@ -84,6 +84,12 @@ function navHtml() {
       <a class="nav-chip" href="/portfolio.html" title="Portfolio" aria-label="Portfolio">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
       </a>
+      <a class="nav-chip" href="/reels.html" title="Reels" aria-label="Reels">
+        <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 8 6 4-6 4V8z"/></svg>
+      </a>
+      <a class="nav-chip" href="/contact.html" title="Contact" aria-label="Contact">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 8 8 6 8-6"/></svg>
+      </a>
       <button type="button" class="nav-chip nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navDrawer">
         <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
@@ -208,7 +214,7 @@ async function renderPage() {
 
   if (page === 'about') {
     const aboutBody = copyOf('about','body', site.about || '') ||
-      'Artist\\'s Studio is a private atelier for still and motion work. We shape light, space, and pace so each frame feels intentional — not noisy.';
+      "Artist's Studio is a private atelier for still and motion work. We shape light, space, and pace so each frame feels intentional — not noisy.";
     const p2 = copyOf('about','body2', '') ||
       'From quiet portraits to directed sequences, the focus stays on craft: clean composition, honest tone, and work that holds attention without shouting.';
     const p3 = copyOf('about','body3', '') ||
