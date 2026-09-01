@@ -352,11 +352,27 @@ async function renderPage() {
     // Channels rendered in contact.html
     return;
   } else if (page === 'policies') {
-    const pol = await api('/policies');
-    const policies = pol.policies || {};
-    root.innerHTML = `<div class="page-hero"><p class="eyebrow">${escapeHtml(copyOf('policies','eyebrow','Legal'))}</p><h1>${escapeHtml(copyOf('policies','title','Policies'))}</h1></div>
-      <div class="pol-list">${Object.keys(policies).map((k) => `
-        <article><h3>${escapeHtml(policies[k].title || k)}</h3><p>${escapeHtml(policies[k].body || '')}</p></article>`).join('')}</div>`;
+    root.innerHTML = `<div class="page-hero"><p class="eyebrow">Legal</p>
+      <h1>Policies</h1>
+      <p class="muted" style="max-width:32ch;margin:8px auto 0;line-height:1.55">How the studio protects its work and your privacy.</p>
+    </div>
+    <div class="pol-list">
+      <article>
+        <h3>Terms of use</h3>
+        <p>Rules for browsing, prohibited copying or attacks, and possible legal consequences.</p>
+        <p style="margin-top:12px"><a class="btn btn-ghost" href="/terms.html">Read Terms</a></p>
+      </article>
+      <article>
+        <h3>Privacy</h3>
+        <p>What we process, contact channels, theme preference storage, and no advertising trackers.</p>
+        <p style="margin-top:12px"><a class="btn btn-ghost" href="/privacy.html">Read Privacy</a></p>
+      </article>
+      <article>
+        <h3><a class="license-link" href="/license.html">License</a></h3>
+        <p>All rights reserved unless a written agreement says otherwise. Tap License for the full grant and limits.</p>
+        <p style="margin-top:12px"><a class="btn" href="/license.html">Open License</a></p>
+      </article>
+    </div>`;
   } else if (page === 'account') {
     if (!currentUser) {
       root.innerHTML = `<div class="page-hero"><p class="eyebrow">Contact</p><h1>Reach the studio</h1>

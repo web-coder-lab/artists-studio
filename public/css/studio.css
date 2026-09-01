@@ -623,3 +623,79 @@ a.license-link:hover{filter:brightness(1.1)}
   display:inline-block;font-size:.72rem;font-weight:600;letter-spacing:.08em;
   text-transform:uppercase;color:var(--accent);margin:0 0 10px;
 }
+
+
+/* Legal pages polished */
+.legal-main{
+  max-width:42rem;margin:0 auto;
+  padding:calc(80px + env(safe-area-inset-top)) 22px 72px;
+}
+.legal-main .eyebrow{margin-bottom:6px}
+.legal-main h1{
+  font-family:var(--font-display),Georgia,serif;
+  font-weight:500;font-size:clamp(2.05rem,5vw,2.75rem);
+  letter-spacing:-.025em;margin:0 0 8px;line-height:1.12;color:var(--text);
+}
+.legal-updated{color:var(--muted);font-size:.84rem;margin:0 0 28px}
+.legal-stack{display:flex;flex-direction:column;gap:20px}
+.legal-stack section{
+  padding:18px 18px;border-radius:16px;border:1px solid var(--line);
+  background:color-mix(in srgb, var(--bg-elev, #121214) 90%, transparent);
+}
+.legal-stack section h2{
+  font-size:1.02rem;font-weight:600;margin:0 0 10px;color:var(--text);
+  letter-spacing:.01em;
+}
+.legal-stack p,.legal-stack li{
+  margin:0;line-height:1.72;color:var(--muted);font-size:.94rem;
+}
+.legal-stack ul{margin:10px 0 0;padding-left:1.15rem}
+.legal-stack li{margin:7px 0}
+.legal-stack a{color:var(--accent);font-weight:500}
+.legal-nav{
+  margin-top:32px;padding-top:18px;border-top:1px solid var(--line);
+  display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  font-size:.9rem;color:var(--muted);
+}
+.legal-nav .dot{opacity:.4}
+.license-hero-card{
+  padding:20px 18px!important;
+  border-radius:18px!important;
+  border:1px solid color-mix(in srgb, var(--accent) 35%, var(--line))!important;
+  background:linear-gradient(145deg,
+    color-mix(in srgb, var(--accent) 12%, transparent),
+    color-mix(in srgb, var(--bg-elev, #121214) 95%, transparent))!important;
+}
+.license-badge{
+  display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent);margin:0 0 12px;
+}
+.offline-main{display:flex;align-items:center;min-height:70vh}
+.offline-card{
+  width:100%;text-align:center;
+  padding:28px 20px;border-radius:20px;border:1px solid var(--line);
+  background:color-mix(in srgb, var(--bg-elev, #121214) 92%, transparent);
+}
+.offline-card h1{margin-bottom:12px}
+.offline-card .prose{margin:0 auto;max-width:28ch;color:var(--muted);line-height:1.65}
+
+/* Footer polish */
+.foot{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  padding:32px 20px 48px;text-align:center;
+  border-top:1px solid var(--line);
+  font-size:.88rem;color:var(--muted);
+}
+.foot-row{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;align-items:baseline}
+.foot-brand{color:var(--text);font-weight:500;font-family:var(--font-display),Georgia,serif;font-size:1.05rem}
+.foot-tag{font-size:.9rem}
+.foot-links{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;align-items:center}
+.foot-sep{opacity:.4}
+.foot a{color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.foot a:hover{color:var(--accent)}
+a.license-link,.license-link{
+  color:var(--accent)!important;
+  text-decoration:underline;
+  text-underline-offset:3px;
+  font-weight:600;
+}
