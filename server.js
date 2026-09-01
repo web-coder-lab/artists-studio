@@ -95,6 +95,12 @@ app.use((req, res, next) => {
   }
   next();
 });
+// Public well-known (must stay standard paths)
+app.use('/.well-known', express.static(path.join(ROOT, 'public', '.well-known'), {
+  dotfiles: 'allow',
+  index: false,
+  fallthrough: true
+}));
 app.use(express.static(path.join(ROOT, 'public'), {
   dotfiles: 'deny',
   index: false,
