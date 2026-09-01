@@ -82,13 +82,20 @@ function wantsHtml(req) {
   if (req.headers['x-admin-key']) return false;
   if (String(req.headers['x-requested-with'] || '').toLowerCase() === 'xmlhttprequest') return false;
   if (req.query && String(req.query.format || '').toLowerCase() === 'json') return false;
-  const accept = String(req.headers.accept || '');
-  if (!accept || accept === '*/*') {
-    // curl default often */* — keep JSON for API under /api
-    if (String(req.path || '').startsWith('/api')) return false;
-  }
+  const accept = String(req.headers.accept || '').toLowerCase();
+  // Explicit JSON-only clients
   if (accept.includes('application/json') && !accept.includes('text/html')) return false;
-  return /text\/html/i.test(accept);
+  // Browser document navigation
+  const dest = String(req.headers['sec-fetch-dest'] || '').toLowerCase();
+  const mode = String(req.headers['sec-fetch-mode'] || '').toLowerCase();
+  if (dest === 'document' || mode === 'navigate') return true;
+  if (accept.includes('text/html')) return true;
+  // Common browsers opening plain URLs without strong Accept
+  const ua = String(req.headers['user-agent'] || '');
+  if (/Mozilla\/|Chrome\/|Safari\/|Edg\/|Firefox\//i.test(ua) && !accept.includes('application/json')) {
+    return true;
+  }
+  return false;
 }
 
 function escapeHtmlShell(s) {
@@ -164,16 +171,42 @@ function redactForHtml(value, depth) {
 function jsonAsThemedHtml(req, res, status, payload) {
   const pathLabel = escapeHtmlShell(req.path || '/api');
   const safe = redactForHtml(payload, 0);
-  let pretty = '';
-  try { pretty = escapeHtmlShell(JSON.stringify(safe, null, 2)); } catch (_) { pretty = '{}'; }
+  const st = status || 200;
+  let bodyHtml = '';
+  const pth = String(req.path || '');
+
+  if (pth.includes('/captcha') && safe && (safe.question || safe.id)) {
+    bodyHtml = `
+      <div class="svc-card">
+        <p class="svc-kicker">Verification</p>
+        <p class="svc-q">${escapeHtmlShell(safe.question || '—')}</p>
+        <p class="doc-note">Solve this when the studio asks for a check. Apps send the answer with the request — this page is only a readable view.</p>
+        <dl class="svc-dl">
+          <div><dt>Reference</dt><dd><code>${escapeHtmlShell(safe.id || '')}</code></dd></div>
+          <div><dt>Expires</dt><dd>${escapeHtmlShell(safe.expires_in != null ? safe.expires_in + 's' : '—')}</dd></div>
+        </dl>
+      </div>`;
+  } else if (pth.endsWith('/health') && safe && safe.status) {
+    bodyHtml = `
+      <div class="svc-card svc-ok">
+        <p class="svc-kicker">Status</p>
+        <p class="svc-q">${escapeHtmlShell(String(safe.status).toUpperCase())}</p>
+        <p class="doc-note">Studio systems are responding. Technical clients still receive JSON on this same address.</p>
+      </div>`;
+  } else {
+    let pretty = '';
+    try { pretty = escapeHtmlShell(JSON.stringify(safe, null, 2)); } catch (_) { pretty = '{}'; }
+    bodyHtml = `<p class="doc-note">This address is part of the studio interface. Authorized applications use it programmatically.</p>
+<pre class="doc-pre">${pretty}</pre>`;
+  }
+
   const html = studioShellPage({
-    title: 'Studio service',
+    title: pth.includes('/captcha') ? 'Check' : (pth.endsWith('/health') ? 'Health' : 'Studio service'),
     eyebrow: 'Interface',
-    lead: pathLabel + (status && status !== 200 ? ' · ' + status : ''),
-    bodyHtml: `<p class="doc-note">This address is part of the studio interface. Authorized applications use it programmatically.</p>
-<pre class="doc-pre">${pretty}</pre>`
+    lead: pathLabel + (st !== 200 ? ' · ' + st : ''),
+    bodyHtml
   });
-  res.status(status || 200).type('html').send(html);
+  res.status(st).type('html').send(html);
 }
 
 /** Wrap res.json so browser navigations get themed pages; clients still get JSON */
@@ -231,6 +264,45 @@ app.get(['/meta/build.txt', '/meta/version.dat'], (req, res, next) => {
     res.type('html').send(html);
   });
 });
+
+const THEMED_XML = [
+  '/sitemap.xml', '/sitemap-index.xml', '/sitemap-pages.xml', '/sitemap-images.xml',
+  '/feed.xml', '/opensearch.xml', '/browserconfig.xml', '/crossdomain.xml', '/clientaccesspolicy.xml'
+];
+app.get(THEMED_XML, (req, res, next) => {
+  if (!wantsHtml(req)) return next();
+  const rel = req.path.replace(/^\//, '');
+  const fp = path.join(ROOT, 'public', rel);
+  fs.readFile(fp, 'utf8', (err, text) => {
+    if (err) return next();
+    const html = studioShellPage({
+      title: path.basename(rel),
+      eyebrow: 'Catalog',
+      lead: 'Structured studio document',
+      bodyHtml: `<pre class="doc-pre doc-pre-wrap">${escapeHtmlShell(text)}</pre>`
+    });
+    res.type('html').send(html);
+  });
+});
+
+app.get(['/manifest.json', '/manifest.webmanifest', '/site.webmanifest', '/.well-known/assetlinks.json', '/.well-known/apple-app-site-association', '/.well-known/security.txt'], (req, res, next) => {
+  if (!wantsHtml(req)) return next();
+  let fp = path.join(ROOT, 'public', req.path.replace(/^\//, ''));
+  if (req.path.startsWith('/.well-known/')) {
+    fp = path.join(ROOT, 'public', '.well-known', path.basename(req.path));
+  }
+  fs.readFile(fp, 'utf8', (err, text) => {
+    if (err) return next();
+    const html = studioShellPage({
+      title: path.basename(req.path),
+      eyebrow: 'App',
+      lead: 'Public configuration',
+      bodyHtml: `<pre class="doc-pre doc-pre-wrap">${escapeHtmlShell(text)}</pre>`
+    });
+    res.type('html').send(html);
+  });
+});
+
 
 // Never serve secrets / source / backups from web root
 app.use((req, res, next) => {

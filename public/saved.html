@@ -2,53 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <meta name="description" content="Artist's Studio — photography, direction, and private conversation. Portfolio, reels, and a direct line to the studio."/>
-  <meta name="robots" content="index,follow"/>
-  <meta property="og:type" content="website"/>
-  <meta property="og:site_name" content="Artist's Studio"/>
-  <meta property="og:title" content="Artist's Studio"/>
-  <meta property="og:description" content="A quiet space for work that holds attention. Portfolio, reels, and private contact."/>
-  <meta property="og:url" content="https://artists-studio.onrender.com/"/>
-  <meta property="og:image" content="https://artists-studio.onrender.com/og.png"/>
-  <meta name="twitter:card" content="summary_large_image"/>
-  <meta name="twitter:title" content="Artist's Studio"/>
-  <meta name="twitter:description" content="Photography · Direction · Craft"/>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
-
-  <title>Saved — Artist's Studio</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/css/studio.css"/>
+  <meta http-equiv="refresh" content="0;url=/reels.html"/>
+  <title>Reels — Artist's Studio</title>
+  <script>location.replace('/reels.html');</script>
 </head>
-<body data-page="account">
-  <div id="site-nav"></div>
-  <main class="wrap" style="padding:24px 16px;max-width:720px;margin:0 auto">
-    <p class="eyebrow">Library</p>
-    <h1 style="font-family:Cormorant Garamond,serif;font-weight:500">Saved reels</h1>
-    <div id="savedRoot" class="muted" style="padding:32px 0">Loading…</div>
-    <p style="margin-top:24px"><a href="/reels.html" class="btn btn-sm">Back to reels</a></p>
-  </main>
-  <div id="site-modals"></div>
-  <script src="/js/api-client.js"></script>
-  <script src="/js/app.js"></script>
-  <script>
-    (async () => {
-      const root = document.getElementById('savedRoot');
-      try {
-        if (!localStorage.getItem('as_token') && !(window.StudioAPI && StudioAPI.getToken())) {
-          root.textContent = 'Sign in to see saved reels.';
-          return;
-        }
-        const data = await (window.StudioAPI ? StudioAPI.api('/reels/saved') : fetch('/api/v1/reels/saved',{headers:{Authorization:'Bearer '+localStorage.getItem('as_token')},credentials:'include'}).then(r=>r.json()));
-        const items = data.items || [];
-        if (!items.length) { root.textContent = 'No saved reels yet.'; return; }
-        root.innerHTML = '<div class="reels-row">' + items.map(r =>
-          `<a class="reel-card" href="/reels.html#reel-${r.id}"><img src="${(r.thumb||r.url||'').replace(/"/g,'')}" alt=""/><span>${(r.title||'Reel').replace(/</g,'')}</span></a>`
-        ).join('') + '</div>';
-      } catch (e) {
-        root.textContent = e.message || 'Could not load';
-      }
-    })();
-  </script>
-</body>
+<body></body>
 </html>
