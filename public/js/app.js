@@ -79,6 +79,14 @@ function navHtml() {
   </aside>
   <header class="nav site-top">
     <a class="brand nav-brand" href="/">Artist's <span>Studio</span></a>
+    <nav class="desk-nav" aria-label="Primary">
+      <a href="/" class="${page === 'home' ? 'active' : ''}">Home</a>
+      <a href="/about.html" class="${page === 'about' ? 'active' : ''}">About</a>
+      <a href="/portfolio.html" class="${page === 'portfolio' ? 'active' : ''}">Work</a>
+      <a href="/reels.html" class="${page === 'reels' ? 'active' : ''}">Reels</a>
+      <a href="/services.html" class="${page === 'services' ? 'active' : ''}">Services</a>
+      <a href="/contact.html" class="${page === 'contact' ? 'active' : ''}">Contact</a>
+    </nav>
     <div class="nav-actions" id="navActions"></div>
     <div class="nav-top-btns">
       <button type="button" class="nav-chip theme-toggle" id="themeToggle" title="Theme" aria-label="Toggle dark or light mode">
