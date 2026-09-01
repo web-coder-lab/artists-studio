@@ -325,6 +325,75 @@ app.use((req, res, next) => {
   next();
 });
 // Public well-known (must stay standard paths)
+
+/* ——— Mobile (-m) vs PC (-p) page shells ——— */
+function isMobileDevice(req) {
+  const ua = String(req.headers['user-agent'] || '');
+  if (/iPhone|iPod|Android.*Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return true;
+  if (/iPad|Tablet|Android(?!.*Mobile)/i.test(ua)) return true; // tablets → mobile shell
+  return false;
+}
+
+const PAGE_BASES = new Set([
+  'home', 'about', 'portfolio', 'reels', 'services', 'contact',
+  'terms', 'privacy', 'license', 'policies', 'offline'
+]);
+
+const LEGACY_MAP = {
+  '/': 'home',
+  '/index.html': 'home',
+  '/about.html': 'about',
+  '/portfolio.html': 'portfolio',
+  '/reels.html': 'reels',
+  '/services.html': 'services',
+  '/contact.html': 'contact',
+  '/terms.html': 'terms',
+  '/privacy.html': 'privacy',
+  '/license.html': 'license',
+  '/policies.html': 'policies',
+  '/offline.html': 'offline',
+  '/account.html': 'contact',
+  '/chat.html': 'contact',
+  '/saved.html': 'reels'
+};
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  const pth = req.path || '/';
+  if (pth.startsWith('/api') || pth.startsWith('/css') || pth.startsWith('/js') || pth.startsWith('/media') || pth.startsWith('/.well-known')) {
+    return next();
+  }
+
+  const mobile = isMobileDevice(req);
+
+  // Explicit -m / -p files
+  const m = pth.match(/^\/([a-z0-9]+)-(m|p)\.html$/i);
+  if (m) {
+    const base = m[1].toLowerCase();
+    const kind = m[2].toLowerCase();
+    if (!PAGE_BASES.has(base)) return next();
+    if (kind === 'm' && !mobile) {
+      // PC opened mobile link → teleport to PC page
+      return res.redirect(302, '/' + base + '-p.html');
+    }
+    if (kind === 'p' && mobile) {
+      // Mobile must not use PC files
+      return res.status(404).sendFile(path.join(ROOT, 'public', '404.html'));
+    }
+    return next(); // allowed
+  }
+
+  // Legacy short URLs → correct shell
+  if (Object.prototype.hasOwnProperty.call(LEGACY_MAP, pth)) {
+    const base = LEGACY_MAP[pth];
+    const dest = '/' + base + (mobile ? '-m' : '-p') + '.html';
+    return res.redirect(302, dest);
+  }
+
+  next();
+});
+
+
 app.use('/.well-known', express.static(path.join(ROOT, 'public', '.well-known'), {
   dotfiles: 'allow',
   index: false,

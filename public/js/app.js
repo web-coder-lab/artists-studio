@@ -1,6 +1,16 @@
 const TOKEN_KEY = 'as_token';
 const API = '/api/v1';
 const page = document.body.dataset.page || 'home';
+function pathSuf() {
+  const s = document.documentElement.getAttribute('data-shell');
+  return s === 'desktop' ? '-p' : '-m';
+}
+function pageHref(base) {
+  // base: 'home' | 'about' | ... → /about-m.html
+  const b = String(base || 'home').replace(/\.html$/, '');
+  if (b === 'home' || b === 'index') return '/home' + pathSuf() + '.html';
+  return '/' + b + pathSuf() + '.html';
+}
 
 let mode = 'login';
 let siteCache = null;
@@ -55,12 +65,12 @@ function escapeHtml(s) {
 
 function navHtml() {
   const links = [
-    ['/', 'home', 'Home', `<svg class="nav-ico" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>`],
-    ['/about.html', 'about', 'About', `<svg class="nav-ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 19.5c1.2-3.2 3.7-4.8 7-4.8s5.8 1.6 7 4.8"/></svg>`],
-    ['/portfolio.html', 'portfolio', 'Portfolio', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`],
-    ['/reels.html', 'reels', 'Reels', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 8 6 4-6 4V8z"/></svg>`],
-    ['/services.html', 'services', 'Services', `<svg class="nav-ico" viewBox="0 0 24 24"><path d="M12 3.5 13.8 9H19l-4 3.2 1.5 5.3L12 14.8 7.5 17.5 9 12.2 5 9h5.2L12 3.5z"/></svg>`],
-    ['/contact.html', 'contact', 'Contact', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 8 8 6 8-6"/></svg>`],
+    [pageHref('home'), 'home', 'Home', `<svg class="nav-ico" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>`],
+    [pageHref('about'), 'about', 'About', `<svg class="nav-ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 19.5c1.2-3.2 3.7-4.8 7-4.8s5.8 1.6 7 4.8"/></svg>`],
+    [pageHref('portfolio'), 'portfolio', 'Portfolio', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`],
+    [pageHref('reels'), 'reels', 'Reels', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 8 6 4-6 4V8z"/></svg>`],
+    [pageHref('services'), 'services', 'Services', `<svg class="nav-ico" viewBox="0 0 24 24"><path d="M12 3.5 13.8 9H19l-4 3.2 1.5 5.3L12 14.8 7.5 17.5 9 12.2 5 9h5.2L12 3.5z"/></svg>`],
+    [pageHref('contact'), 'contact', 'Contact', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 8 8 6 8-6"/></svg>`],
   ];
   const drawerLinks = links.map(([href, key, label, ico]) =>
     `<a class="nav-drawer-link${page === key ? ' active' : ''}" href="${href}">${ico}<span>${label}</span></a>`
@@ -78,14 +88,14 @@ function navHtml() {
     <div class="nav-drawer-foot">Artist's Studio</div>
   </aside>
   <header class="nav site-top">
-    <a class="brand nav-brand" href="/">Artist's <span>Studio</span></a>
+    <a class="brand nav-brand" href="${pageHref('home')}">Artist's <span>Studio</span></a>
     <nav class="desk-nav" aria-label="Primary">
-      <a href="/" class="${page === 'home' ? 'active' : ''}">Home</a>
-      <a href="/about.html" class="${page === 'about' ? 'active' : ''}">About</a>
-      <a href="/portfolio.html" class="${page === 'portfolio' ? 'active' : ''}">Work</a>
-      <a href="/reels.html" class="${page === 'reels' ? 'active' : ''}">Reels</a>
+      <a href="${pageHref('home')}" class="${page === 'home' ? 'active' : ''}">Home</a>
+      <a href="${pageHref('about')}" class="${page === 'about' ? 'active' : ''}">About</a>
+      <a href="${pageHref('portfolio')}" class="${page === 'portfolio' ? 'active' : ''}">Work</a>
+      <a href="${pageHref('reels')}" class="${page === 'reels' ? 'active' : ''}">Reels</a>
       <a href="/services.html" class="${page === 'services' ? 'active' : ''}">Services</a>
-      <a href="/contact.html" class="${page === 'contact' ? 'active' : ''}">Contact</a>
+      <a href="${pageHref('contact')}" class="${page === 'contact' ? 'active' : ''}">Contact</a>
     </nav>
     <div class="nav-actions" id="navActions"></div>
     <div class="nav-top-btns">
@@ -106,11 +116,11 @@ function footHtml() {
       <span class="muted foot-tag">— private atelier</span>
     </div>
     <div class="foot-links">
-      <a href="/terms.html">Terms</a>
+      <a href="${pageHref('terms')}">Terms</a>
       <span class="foot-sep" aria-hidden="true">·</span>
-      <a href="/privacy.html">Privacy</a>
+      <a href="${pageHref('privacy')}">Privacy</a>
       <span class="foot-sep" aria-hidden="true">·</span>
-      <a class="license-link" href="/license.html">License</a>
+      <a class="license-link" href="${pageHref('license')}">License</a>
     </div>
   </footer>`;
 }
@@ -354,7 +364,7 @@ async function renderPage() {
       }).join('')}</div>
       <div class="svc-foot">
         <p class="muted">Need something specific? Tell the studio what you have in mind.</p>
-        <a class="btn" href="/contact.html">Get in touch</a>
+        <a class="btn" href="${pageHref('contact')}">Get in touch</a>
       </div>`;
   } else if (page === 'contact') {
     // Channels rendered in contact.html
@@ -368,34 +378,34 @@ async function renderPage() {
       <article>
         <h3>Terms of use</h3>
         <p>Rules for browsing, prohibited copying or attacks, and possible legal consequences.</p>
-        <p style="margin-top:12px"><a class="btn btn-ghost" href="/terms.html">Read Terms</a></p>
+        <p style="margin-top:12px"><a class="btn btn-ghost" href="${pageHref('terms')}">Read Terms</a></p>
       </article>
       <article>
         <h3>Privacy</h3>
         <p>What we process, contact channels, theme preference storage, and no advertising trackers.</p>
-        <p style="margin-top:12px"><a class="btn btn-ghost" href="/privacy.html">Read Privacy</a></p>
+        <p style="margin-top:12px"><a class="btn btn-ghost" href="${pageHref('privacy')}">Read Privacy</a></p>
       </article>
       <article>
-        <h3><a class="license-link" href="/license.html">License</a></h3>
+        <h3><a class="license-link" href="${pageHref('license')}">License</a></h3>
         <p>All rights reserved unless a written agreement says otherwise. Tap License for the full grant and limits.</p>
-        <p style="margin-top:12px"><a class="btn" href="/license.html">Open License</a></p>
+        <p style="margin-top:12px"><a class="btn" href="${pageHref('license')}">Open License</a></p>
       </article>
     </div>`;
   } else if (page === 'account') {
     if (!currentUser) {
       root.innerHTML = `<div class="page-hero"><p class="eyebrow">Contact</p><h1>Reach the studio</h1>
         <p class="muted">WhatsApp, Instagram, or email — no account needed.</p>
-        <a class="btn" href="/contact.html">Open contact</a></div>`;
+        <a class="btn" href="${pageHref('contact')}">Open contact</a></div>`;
     } else {
       root.innerHTML = `<div class="page-hero"><p class="eyebrow">Welcome</p>
         <h1>${escapeHtml(currentUser.name)}</h1>
         <p class="muted">@${escapeHtml(currentUser.username)}</p></div>
         <div class="dash-grid">
           <article class="tile"><h3>Profile</h3><p>${escapeHtml(currentUser.name)} · @${escapeHtml(currentUser.username)}</p></article>
-          <article class="tile"><h3>Contact</h3><p><a href="/contact.html" style="color:var(--accent)">WhatsApp · Instagram · Email</a></p></article>
+          <article class="tile"><h3>Contact</h3><p><a href="${pageHref('contact')}" style="color:var(--accent)">WhatsApp · Instagram · Email</a></p></article>
           <article class="tile"><h3>Calls</h3><p class="muted">Voice & video — coming soon.</p></article>
         </div>
-        <p style="margin:8px 0 16px"><a class="btn" href="/contact.html">WhatsApp · Instagram · Email</a></p>
+        <p style="margin:8px 0 16px"><a class="btn" href="${pageHref('contact')}">WhatsApp · Instagram · Email</a></p>
         <button type="button" class="btn btn-ghost" id="btnLogout">Sign out</button>
         <hr style="border:none;border-top:1px solid var(--line);margin:24px 0"/>
         <h2 style="font-size:1.1rem">Profile</h2>
@@ -608,7 +618,9 @@ async function boot() {
   initTheme();
   try {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.getRegistrations().then(function(rs){
+        rs.forEach(function(r){ r.unregister(); });
+      }).catch(function(){});
     }
   } catch (_) {}
   document.body.classList.remove('booting', 'locked');

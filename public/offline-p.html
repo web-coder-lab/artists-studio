@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <script>document.documentElement.setAttribute("data-shell","desktop");document.documentElement.classList.add("is-desktop");</script>
+
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="theme-color" content="#0a0a0b"/>
+  <title>Offline — Artist's Studio</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/studio.css"/>
+  <link rel="stylesheet" href="/css/studio-desktop.css"/>
+  <script src="/js/shell-lock-p.js" defer></script>
+</head>
+<body data-page="offline">
+  <div class="grain" aria-hidden="true"></div>
+  <header class="nav site-top">
+    <a class="brand nav-brand" href="/home-p.html">Artist's <span>Studio</span></a>
+  </header>
+  <main class="legal-main offline-main">
+    <div class="offline-card">
+      <p class="eyebrow">Connection</p>
+      <h1>You're offline</h1>
+      <p class="prose">The studio page needs a network connection. Check your signal, then try again.</p>
+      <div class="home-cta" style="margin-top:24px;justify-content:center">
+        <a class="btn" href="/home-p.html">Try home</a>
+        <a class="btn btn-ghost" href="/contact-p.html">Contact</a>
+      </div>
+    </div>
+  </main>
+  <script>
+    (function(){
+      try {
+        var t = localStorage.getItem('as_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+      } catch (e) {}
+      window.addEventListener('online', function(){ location.href = '/'; });
+    })();
+  </script>
+</body>
+</html>
