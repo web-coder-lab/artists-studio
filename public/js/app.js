@@ -81,15 +81,6 @@ function navHtml() {
     <a class="brand nav-brand" href="/">Artist's <span>Studio</span></a>
     <div class="nav-actions" id="navActions"></div>
     <div class="nav-top-btns">
-      <a class="nav-chip" href="/portfolio.html" title="Portfolio" aria-label="Portfolio">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-      </a>
-      <a class="nav-chip" href="/reels.html" title="Reels" aria-label="Reels">
-        <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 8 6 4-6 4V8z"/></svg>
-      </a>
-      <a class="nav-chip" href="/contact.html" title="Contact" aria-label="Contact">
-        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 8 8 6 8-6"/></svg>
-      </a>
       <button type="button" class="nav-chip theme-toggle" id="themeToggle" title="Theme" aria-label="Toggle dark or light mode">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
