@@ -75,7 +75,36 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key', 'X-Requested-With']
 }));
 app.use(express.json({ limit: '32kb' }));
-app.use(express.static(path.join(ROOT, 'public')));
+// Never serve secrets / source / backups from web root
+app.use((req, res, next) => {
+  const pth = (req.path || '').toLowerCase();
+  if (
+    pth.includes('.env') ||
+    pth.endsWith('.git') ||
+    pth.includes('/.git/') ||
+    pth.endsWith('.md') ||
+    pth.endsWith('.map') ||
+    pth.includes('backup') ||
+    pth.endsWith('.zip') ||
+    pth.endsWith('package.json') ||
+    pth.endsWith('server.js') ||
+    pth.endsWith('db.js') ||
+    pth.includes('node_modules')
+  ) {
+    return res.status(404).type('text/plain').send('Not found');
+  }
+  next();
+});
+app.use(express.static(path.join(ROOT, 'public'), {
+  dotfiles: 'deny',
+  index: false,
+  setHeaders: (res, filePath) => {
+    if (/hero-portrait|studio-portrait/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    }
+  }
+}));
 app.use('/media/public', express.static(path.join(__dirname, 'uploads', 'public')));
 
 /* ——— Phase 1: well-known + HTTPS nudge + probe-safe static ——— */

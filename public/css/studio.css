@@ -273,3 +273,125 @@ main{flex:1;width:100%}
 
 /* public unlock */
 body.locked main,html.needs-auth body > main{visibility:visible!important;pointer-events:auto!important}
+
+
+/* ——— Hero portrait (home) ——— */
+.hero-stage{
+  align-items:center;
+  gap:clamp(28px,5vw,56px);
+  padding:clamp(28px,6vw,64px) 0 48px;
+}
+.hero-copy{max-width:34rem}
+.hero-copy h1{
+  font-size:clamp(2.1rem,5.2vw,3.35rem);
+  line-height:1.12;
+  letter-spacing:-.02em;
+  margin:0 0 14px;
+}
+.hero-copy .lede{
+  font-size:1.05rem;
+  line-height:1.65;
+  color:var(--muted);
+  max-width:28rem;
+}
+.hero-portrait-wrap{
+  position:relative;
+  width:min(100%,380px);
+  margin-inline:auto;
+  border:none;
+  background:transparent;
+  box-shadow:none;
+  padding:0;
+}
+.portrait-glow{
+  position:absolute;inset:-8% -6% -4%;
+  border-radius:40% 40% 32% 32%;
+  background:radial-gradient(ellipse at 50% 40%,
+    color-mix(in srgb, var(--accent) 28%, transparent),
+    transparent 68%);
+  filter:blur(18px);
+  opacity:.85;
+  pointer-events:none;
+  z-index:0;
+}
+html[data-theme="light"] .portrait-glow{
+  background:radial-gradient(ellipse at 50% 40%,
+    color-mix(in srgb, var(--accent) 22%, transparent),
+    transparent 70%);
+}
+.portrait-frame{
+  position:relative;
+  z-index:1;
+  border-radius:28px;
+  overflow:hidden;
+  aspect-ratio:3/4;
+  background:var(--bg-soft);
+  border:1px solid var(--line);
+  box-shadow:var(--shadow);
+}
+/* Dark: deep charcoal stage — shirt remains visible */
+html[data-theme="dark"] .portrait-frame,
+html:not([data-theme="light"]) .portrait-frame{
+  background:linear-gradient(165deg,#16161a 0%,#0c0c0e 55%,#121218 100%);
+}
+html[data-theme="light"] .portrait-frame{
+  background:linear-gradient(165deg,#f3efe8 0%,#e8e2d8 50%,#f7f4ee 100%);
+}
+.hero-photo{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center bottom;
+  display:block;
+  user-select:none;
+  -webkit-user-drag:none;
+  pointer-events:none;
+  /* keep black jacket visible on dark */
+  filter:none;
+}
+.portrait-shield{
+  position:absolute;inset:0;
+  z-index:2;
+  background:transparent;
+  /* blocks easy "save image" hit-testing */
+  cursor:default;
+}
+.protect-media{
+  -webkit-touch-callout:none;
+  user-select:none;
+}
+.hero-portrait-wrap .portrait-inner{
+  position:relative;
+  z-index:3;
+  margin-top:16px;
+  text-align:center;
+  background:transparent;
+  border:none;
+  padding:4px 8px 0;
+}
+.hero-portrait-wrap .portrait-inner .role{
+  font-size:.72rem;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--accent);
+  margin-bottom:6px;
+}
+.hero-portrait-wrap .portrait-inner h2{
+  font-family:var(--font-display);
+  font-weight:500;
+  font-size:1.35rem;
+  margin:0 0 6px;
+  color:var(--text);
+}
+.hero-portrait-wrap .portrait-inner p{
+  margin:0;
+  color:var(--muted);
+  font-size:.9rem;
+  line-height:1.45;
+}
+@media (min-width:900px){
+  .hero-stage{
+    grid-template-columns:1.05fr 0.95fr;
+  }
+  .hero-portrait-wrap{width:min(100%,400px);margin-inline:0 0 auto}
+}
