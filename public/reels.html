@@ -318,43 +318,131 @@
       .sheet.on { transform: translate(-50%, 0); }
     }
 
-    /* Light theme — chrome only (feed stays cinematic) */
+
+    /* ——— Light theme (full chrome + empty states) ——— */
+    html[data-theme="light"] {
+      --gold: #a67c3d;
+      --gold-2: #c4a574;
+      --glass: rgba(255,255,255,.82);
+      --line: rgba(20,17,13,.12);
+      --page: #f3efe8;
+      --page-2: #eae4da;
+      --ink: #14110d;
+      --muted: #6b6560;
+    }
+    html[data-theme="light"] html,
     html[data-theme="light"] body {
-      background: #f4f0ea !important;
-      color: #14110d;
+      background: var(--page) !important;
+      color: var(--ink);
     }
     html[data-theme="light"] .top {
-      background: linear-gradient(180deg, rgba(244,240,234,.92), rgba(244,240,234,.35));
+      background: linear-gradient(180deg, rgba(243,239,232,.96) 0%, rgba(243,239,232,.75) 55%, transparent 100%);
     }
-    html[data-theme="light"] .brand { color: #14110d; }
-    html[data-theme="light"] .brand em { color: #a67c3d; }
+    html[data-theme="light"] .brand { color: var(--ink); }
+    html[data-theme="light"] .brand em { color: var(--gold); }
     html[data-theme="light"] .chip-btn {
-      background: rgba(255,255,255,.78);
-      border-color: rgba(0,0,0,.12);
-      color: #14110d;
+      background: var(--glass);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      box-shadow: 0 2px 10px rgba(20,17,13,.06);
     }
-    html[data-theme="light"] .chip-btn:hover { border-color: #a67c3d; color: #a67c3d; }
+    html[data-theme="light"] .chip-btn:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+    html[data-theme="light"] .scrim {
+      background: rgba(20,17,13,.35);
+    }
     html[data-theme="light"] .drawer {
       background: #faf7f2;
-      border-left-color: rgba(0,0,0,.08);
-      color: #14110d;
+      color: var(--ink);
+      border-left: 1px solid var(--line);
+      box-shadow: -8px 0 32px rgba(20,17,13,.08);
     }
-    html[data-theme="light"] .drawer-head strong { color: #14110d; }
-    html[data-theme="light"] .nav-link { color: #3a3530; }
+    html[data-theme="light"] .drawer-head strong { color: var(--ink); }
+    html[data-theme="light"] .nav-link {
+      color: var(--muted);
+    }
     html[data-theme="light"] .nav-link.on,
-    html[data-theme="light"] .nav-link:hover { color: #a67c3d; background: rgba(166,124,61,.1); }
-    html[data-theme="light"] .drawer-foot { color: #7a736a; }
-    html[data-theme="light"] .scrim { background: rgba(20,17,13,.4); }
-    html[data-theme="light"] .shell {
-      background: #0a0a0b;
+    html[data-theme="light"] .nav-link:hover {
+      color: var(--gold);
+      background: rgba(166,124,61,.12);
     }
-    html[data-theme="light"] .state { color: #e8e4dc; }
-    html[data-theme="light"] .state a { color: #d4b483; }
+    html[data-theme="light"] .drawer-foot {
+      color: var(--muted);
+      border-top-color: var(--line);
+    }
+    /* Feed shell: soft frame in light mode */
+    html[data-theme="light"] .shell {
+      background: var(--page-2);
+    }
+    html[data-theme="light"] .feed {
+      background: transparent;
+    }
+    /* Empty / loading state */
+    html[data-theme="light"] .state {
+      color: var(--ink);
+      background: transparent;
+    }
+    html[data-theme="light"] .state h3 { color: var(--ink); }
+    html[data-theme="light"] .state p { color: var(--muted); }
+    html[data-theme="light"] .state a {
+      color: var(--ink);
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 10px 18px;
+      display: inline-block;
+      margin-top: 12px;
+    }
+    html[data-theme="light"] .state a:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+    html[data-theme="light"] .spin {
+      border-color: rgba(20,17,13,.15);
+      border-top-color: var(--gold);
+    }
+    /* Video slides stay dark for contrast; soften page letterbox */
+    html[data-theme="light"] .slide {
+      background: #0c0c0e;
+    }
+    html[data-theme="light"] .meta,
+    html[data-theme="light"] .rail-count,
+    html[data-theme="light"] .rail-btn {
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,.45);
+    }
+    /* Comments sheet */
     html[data-theme="light"] .sheet {
       background: #faf7f2;
-      color: #14110d;
+      color: var(--ink);
+      border-top: 1px solid var(--line);
     }
-    html[data-theme="light"] .sheet-head h3 { color: #14110d; }
+    html[data-theme="light"] .sheet-head {
+      border-bottom-color: var(--line);
+    }
+    html[data-theme="light"] .sheet-head h3 { color: var(--ink); }
+    html[data-theme="light"] .sheet-form input {
+      background: #fff;
+      border: 1px solid var(--line);
+      color: var(--ink);
+    }
+    html[data-theme="light"] .sheet-form button {
+      background: var(--gold);
+      color: #fff;
+    }
+    html[data-theme="light"] .c-item { border-bottom-color: var(--line); }
+    html[data-theme="light"] .c-item .name { color: var(--ink); }
+    html[data-theme="light"] .c-item .body { color: var(--muted); }
+
+    @media (min-width: 900px) {
+      html[data-theme="light"] .shell {
+        border-left: 1px solid var(--line);
+        border-right: 1px solid var(--line);
+        box-shadow: 0 0 0 1px rgba(20,17,13,.04);
+      }
+    }
   </style>
 </head>
 <body data-page="reels">
