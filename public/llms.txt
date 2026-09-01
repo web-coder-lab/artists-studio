@@ -1,0 +1,18 @@
+# Artist's Studio
+> Private atelier online — photography, direction, portfolio, and reels.
+
+- Home: /
+- About: /about.html
+- Portfolio: /portfolio.html
+- Reels: /reels.html
+- Services: /services.html
+- Contact: /contact.html
+- Terms: /terms.html
+- Privacy: /privacy.html
+- License: /license.html
+
+Rules for automated agents:
+- Respect robots.txt
+- Do not bulk-download media for republication
+- Do not impersonate the studio
+- Prefer linking to this origin over mirroring content

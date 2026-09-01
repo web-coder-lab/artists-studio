@@ -93,8 +93,17 @@ function navHtml() {
 
 function footHtml() {
   return `<footer class="foot">
-    <span>Artist's Studio</span>
-    <span class="muted">— private atelier</span>
+    <div class="foot-row">
+      <span class="foot-brand">Artist's Studio</span>
+      <span class="muted foot-tag">— private atelier</span>
+    </div>
+    <div class="foot-links">
+      <a href="/terms.html">Terms</a>
+      <span class="foot-sep" aria-hidden="true">·</span>
+      <a href="/privacy.html">Privacy</a>
+      <span class="foot-sep" aria-hidden="true">·</span>
+      <a class="license-link" href="/license.html">License</a>
+    </div>
   </footer>`;
 }
 

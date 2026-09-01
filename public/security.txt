@@ -1,0 +1,3 @@
+Contact: https://artists-studio.onrender.com/contact.html
+Preferred-Languages: en
+Canonical: https://artists-studio.onrender.com/.well-known/security.txt

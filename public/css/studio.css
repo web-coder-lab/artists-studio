@@ -267,10 +267,7 @@ main{flex:1;width:100%}
 .lightbox-cap{color:#c8c4bb;margin-top:16px;text-align:center;max-width:90vw}
 
 /* ——— Footer ——— */
-.foot{
-  border-top:1px solid var(--line);padding:28px 28px;display:flex;flex-wrap:wrap;gap:12px;
-  justify-content:space-between;align-items:center;color:var(--muted);font-size:.85rem;
-}
+/* foot replaced below */
 .foot a{color:var(--muted)}
 .foot a:hover{color:var(--accent)}
 
@@ -567,3 +564,62 @@ body[data-page="contact"] main.contact-main{
   padding-top:calc(72px + env(safe-area-inset-top));
 }
 .nav-actions:empty{display:none}
+
+
+/* Footer legal */
+.foot{
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  padding:28px 20px 40px;text-align:center;
+  border-top:1px solid var(--line);
+  font-size:.88rem;color:var(--muted);
+}
+.foot-row{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;align-items:baseline}
+.foot-brand{color:var(--text);font-weight:500}
+.foot-links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;align-items:center}
+.foot-sep{opacity:.45}
+.foot a{color:var(--muted);text-decoration:none;font-weight:500}
+.foot a:hover{color:var(--accent)}
+a.license-link,.license-link{
+  color:var(--accent)!important;
+  text-decoration:underline;
+  text-underline-offset:3px;
+  font-weight:600;
+  letter-spacing:.02em;
+}
+a.license-link:hover{filter:brightness(1.1)}
+
+/* Legal pages */
+.legal-main{
+  max-width:40rem;margin:0 auto;
+  padding:calc(72px + env(safe-area-inset-top)) 22px 64px;
+}
+.legal-main h1{
+  font-family:var(--font-display),Georgia,serif;
+  font-weight:500;font-size:clamp(2rem,5vw,2.6rem);
+  letter-spacing:-.02em;margin:8px 0 6px;line-height:1.15;
+}
+.legal-updated{color:var(--muted);font-size:.85rem;margin:0 0 28px}
+.legal-stack{display:flex;flex-direction:column;gap:22px}
+.legal-stack section h2{
+  font-size:1.05rem;font-weight:600;margin:0 0 8px;color:var(--text);
+}
+.legal-stack p,.legal-stack li{
+  margin:0;line-height:1.7;color:var(--muted);font-size:.95rem;
+}
+.legal-stack ul{margin:8px 0 0;padding-left:1.2rem}
+.legal-stack li{margin:6px 0}
+.legal-stack a{color:var(--accent)}
+.legal-nav{
+  margin-top:36px;padding-top:20px;border-top:1px solid var(--line);
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  font-size:.9rem;color:var(--muted);
+}
+.legal-nav .dot{opacity:.4}
+.license-hero-card{
+  padding:18px 18px;border-radius:16px;border:1px solid var(--line);
+  background:color-mix(in srgb,var(--accent) 8%, transparent);
+}
+.license-badge{
+  display:inline-block;font-size:.72rem;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--accent);margin:0 0 10px;
+}
