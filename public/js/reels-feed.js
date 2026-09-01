@@ -160,7 +160,7 @@
         feed.innerHTML = `
           <div class="state">
             <h3>No reels yet</h3>
-            <p>Upload from Admin app — they will appear here.</p>
+            <p>New motion work will show up here soon.</p>
             <a href="/portfolio.html">View portfolio</a>
           </div>`;
         return;

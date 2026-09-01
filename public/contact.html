@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <meta name="theme-color" content="#050506"/>
+  <meta name="theme-color" content="#0a0a0b"/>
   <title>Contact — Artist's Studio</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="/css/studio.css"/>
 </head>
 <body data-page="contact">
   <div class="grain" aria-hidden="true"></div>
   <div id="site-nav"></div>
-  <main class="wrap" style="max-width:440px">
+  <main class="wrap contact-page">
     <p class="eyebrow" id="cEyebrow">Connect</p>
-    <h1 id="cTitle" style="font-family:Cormorant Garamond,serif;font-weight:500;font-size:clamp(2.2rem,5vw,2.8rem);margin:12px 0 14px;line-height:1.1">Get in touch</h1>
-    <p class="muted" id="cSub" style="margin:0 0 32px;line-height:1.7">WhatsApp, Instagram, or email. No account needed.</p>
+    <h1 id="cTitle" class="contact-title">Get in touch</h1>
+    <p class="muted contact-sub" id="cSub">WhatsApp, Instagram, or email. No account needed — pick a channel and say hello.</p>
     <div id="channels" class="channel-grid"><p class="muted">Loading…</p></div>
   </main>
   <div id="site-foot"></div>
@@ -32,16 +32,22 @@
         if (c.subtitle) document.getElementById('cSub').textContent = c.subtitle;
       } catch (_) {}
       const root = document.getElementById('channels');
+      const ico = {
+        wa: `<svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.05 4.91A9.82 9.82 0 0 0 12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01zm-7.01 15.24c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.26 8.26 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.83c.02 4.54-3.68 8.23-8.22 8.23zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.78.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.42h-.48c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74 1.76.76 2.18.76 2.56.71.39-.05 1.25-.51 1.43-1 .17-.5.17-.92.12-1.01-.05-.08-.22-.13-.47-.25z"/></svg>`,
+        ig: `<svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85C2.38 3.92 3.9 2.38 7.15 2.23 8.42 2.17 8.8 2.16 12 2.16m0-2.16C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95C23.73 2.7 21.31.27 16.95.07 15.67.01 15.26 0 12 0zm0 5.84a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.41-11.85a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z"/></svg>`,
+        mail: `<svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5L4 8V6l8 5 8-5v2z"/></svg>`
+      };
       try {
         const data = await fetch('/api/v1/socials').then(r => r.json());
         const s = data.socials || {};
         const wa = String(s.whatsapp || '').replace(/\D/g, '');
         const email = s.email || '';
-        const ig = s.instagram || '';
+        let ig = s.instagram || '';
+        if (ig && !/^https?:/i.test(ig)) ig = 'https://instagram.com/' + ig.replace(/^@/, '');
         const cards = [];
-        if (wa) cards.push(`<a class="channel-card" href="https://wa.me/${wa}" target="_blank" rel="noopener"><span class="channel-ico">WHATSAPP</span><span class="channel-label">WhatsApp</span><span class="channel-sub">Message the studio</span></a>`);
-        if (ig) cards.push(`<a class="channel-card" href="${ig.replace(/"/g,'')}" target="_blank" rel="noopener"><span class="channel-ico">INSTAGRAM</span><span class="channel-label">Instagram</span><span class="channel-sub">Open profile</span></a>`);
-        if (email) cards.push(`<a class="channel-card" href="mailto:${email.replace(/"/g,'')}"><span class="channel-ico">EMAIL</span><span class="channel-label">Gmail</span><span class="channel-sub">${email.replace(/</g,'')}</span></a>`);
+        if (wa) cards.push(`<a class="channel-card ch-wa" href="https://wa.me/${wa}" target="_blank" rel="noopener"><span class="channel-ico-wrap">${ico.wa}</span><span class="channel-text"><span class="channel-label">WhatsApp</span><span class="channel-sub">Message the studio</span></span><span class="channel-arrow" aria-hidden="true">→</span></a>`);
+        if (ig) cards.push(`<a class="channel-card ch-ig" href="${ig.replace(/"/g,'')}" target="_blank" rel="noopener"><span class="channel-ico-wrap">${ico.ig}</span><span class="channel-text"><span class="channel-label">Instagram</span><span class="channel-sub">Open profile</span></span><span class="channel-arrow" aria-hidden="true">→</span></a>`);
+        if (email) cards.push(`<a class="channel-card ch-mail" href="mailto:${email.replace(/"/g,'')}"><span class="channel-ico-wrap">${ico.mail}</span><span class="channel-text"><span class="channel-label">Email</span><span class="channel-sub">${email.replace(/</g,'')}</span></span><span class="channel-arrow" aria-hidden="true">→</span></a>`);
         root.innerHTML = cards.length ? cards.join('') : '<p class="muted">Channels coming soon.</p>';
       } catch (e) {
         root.innerHTML = '<p class="muted">Could not load channels.</p>';

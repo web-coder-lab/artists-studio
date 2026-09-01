@@ -207,8 +207,30 @@ async function renderPage() {
   if (!root) return;
 
   if (page === 'about') {
-    root.innerHTML = `<div class="page-hero"><p class="eyebrow">${escapeHtml(copyOf('about','eyebrow','Studio'))}</p><h1>${escapeHtml(copyOf('about','title','About'))}</h1>
-      <p class="prose">${escapeHtml(copyOf('about','body', site.about || ''))}</p></div>`;
+    const aboutBody = copyOf('about','body', site.about || '') ||
+      'Artist\\'s Studio is a private atelier for still and motion work. We shape light, space, and pace so each frame feels intentional — not noisy.';
+    const p2 = copyOf('about','body2', '') ||
+      'From quiet portraits to directed sequences, the focus stays on craft: clean composition, honest tone, and work that holds attention without shouting.';
+    const p3 = copyOf('about','body3', '') ||
+      'When you are ready to talk through a brief, reach out through the contact channels. The studio prefers clarity over rush.';
+    root.innerHTML = `<div class="page-hero about-hero">
+      <p class="eyebrow">${escapeHtml(copyOf('about','eyebrow','Studio'))}</p>
+      <h1>${escapeHtml(copyOf('about','title','About the studio'))}</h1>
+      <div class="about-stack">
+        <p class="prose">${escapeHtml(aboutBody)}</p>
+        <p class="prose">${escapeHtml(p2)}</p>
+        <p class="prose muted-prose">${escapeHtml(p3)}</p>
+      </div>
+      <div class="about-pillars">
+        <div class="pillar"><span class="pillar-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></svg></span><strong>Light</strong><span>Controlled, never harsh</span></div>
+        <div class="pillar"><span class="pillar-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.5"/><path d="M14 16l3-4 4 6H4"/></svg></span><strong>Frame</strong><span>Composition that breathes</span></div>
+        <div class="pillar"><span class="pillar-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12h16M12 4v16"/><circle cx="12" cy="12" r="8"/></svg></span><strong>Pace</strong><span>Still or motion, on purpose</span></div>
+      </div>
+      <div class="home-cta" style="margin-top:28px">
+        <a class="btn" href="/portfolio.html">View work</a>
+        <a class="btn btn-ghost" href="/contact.html">Contact</a>
+      </div>
+    </div>`;
   } else if (page === 'portfolio') {
     const folio = await api('/portfolio');
     const items = folio.items || [];
@@ -295,9 +317,36 @@ async function renderPage() {
           <img src="${escapeHtml(r.thumb)}" alt="" loading="lazy"/><span>${escapeHtml(r.title)}</span>
         </a>`).join('')}</div>`;
   } else if (page === 'services') {
-    root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:8px"><p class="eyebrow">${escapeHtml(copyOf('services','eyebrow','Offerings'))}</p><h1>${escapeHtml(copyOf('services','title','Services'))}</h1></div>
-      <div class="svc-grid">${(site.services || []).map((x) => `
-        <article class="svc-card"><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.text)}</p></article>`).join('')}</div>`;
+    const defaultSvc = [
+      { title: 'Portrait sessions', text: 'Quiet, directed portraits for personal and brand use — natural light or controlled studio tone.', icon: 'cam' },
+      { title: 'Campaign stills', text: 'Product and lifestyle frames built for clarity on screen and print.', icon: 'grid' },
+      { title: 'Motion & reels', text: 'Short sequences with the same restraint as the stills — paced, not noisy.', icon: 'play' },
+      { title: 'Direction', text: 'Look development and on-set guidance so the final set feels coherent.', icon: 'compass' }
+    ];
+    const list = (site.services && site.services.length) ? site.services : defaultSvc;
+    const ico = {
+      cam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8h3l2-2h6l2 2h3v11H4V8z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+      grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+      play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5L10 9.5z"/></svg>',
+      compass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5 11 11l-1.5 3.5L13 13l1.5-3.5z"/></svg>'
+    };
+    root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:12px">
+      <p class="eyebrow">${escapeHtml(copyOf('services','eyebrow','Offerings'))}</p>
+      <h1>${escapeHtml(copyOf('services','title','Services'))}</h1>
+      <p class="lede svc-intro">${escapeHtml(copyOf('services','subtitle','Clear packages. Honest scope. Craft first.'))}</p>
+    </div>
+      <div class="svc-grid">${list.map((x, i) => {
+        const key = x.icon || ['cam','grid','play','compass'][i % 4];
+        return `<article class="svc-card">
+          <div class="svc-ico" aria-hidden="true">${ico[key] || ico.cam}</div>
+          <h3>${escapeHtml(x.title)}</h3>
+          <p>${escapeHtml(x.text || x.description || '')}</p>
+        </article>`;
+      }).join('')}</div>
+      <div class="svc-foot">
+        <p class="muted">Need something specific? Tell the studio what you have in mind.</p>
+        <a class="btn" href="/contact.html">Get in touch</a>
+      </div>`;
   } else if (page === 'contact') {
     // Channels rendered in contact.html
     return;
