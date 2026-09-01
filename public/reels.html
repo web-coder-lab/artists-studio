@@ -317,6 +317,44 @@
       .sheet { transform: translate(-50%, 110%); }
       .sheet.on { transform: translate(-50%, 0); }
     }
+
+    /* Light theme — chrome only (feed stays cinematic) */
+    html[data-theme="light"] body {
+      background: #f4f0ea !important;
+      color: #14110d;
+    }
+    html[data-theme="light"] .top {
+      background: linear-gradient(180deg, rgba(244,240,234,.92), rgba(244,240,234,.35));
+    }
+    html[data-theme="light"] .brand { color: #14110d; }
+    html[data-theme="light"] .brand em { color: #a67c3d; }
+    html[data-theme="light"] .chip-btn {
+      background: rgba(255,255,255,.78);
+      border-color: rgba(0,0,0,.12);
+      color: #14110d;
+    }
+    html[data-theme="light"] .chip-btn:hover { border-color: #a67c3d; color: #a67c3d; }
+    html[data-theme="light"] .drawer {
+      background: #faf7f2;
+      border-left-color: rgba(0,0,0,.08);
+      color: #14110d;
+    }
+    html[data-theme="light"] .drawer-head strong { color: #14110d; }
+    html[data-theme="light"] .nav-link { color: #3a3530; }
+    html[data-theme="light"] .nav-link.on,
+    html[data-theme="light"] .nav-link:hover { color: #a67c3d; background: rgba(166,124,61,.1); }
+    html[data-theme="light"] .drawer-foot { color: #7a736a; }
+    html[data-theme="light"] .scrim { background: rgba(20,17,13,.4); }
+    html[data-theme="light"] .shell {
+      background: #0a0a0b;
+    }
+    html[data-theme="light"] .state { color: #e8e4dc; }
+    html[data-theme="light"] .state a { color: #d4b483; }
+    html[data-theme="light"] .sheet {
+      background: #faf7f2;
+      color: #14110d;
+    }
+    html[data-theme="light"] .sheet-head h3 { color: #14110d; }
   </style>
 </head>
 <body data-page="reels">
@@ -405,23 +443,29 @@
   </script>
   <script src="/js/api-client.js"></script>
   <script>
-    (function(){
-      function apply(t){
+    (function () {
+      function apply(t) {
+        t = t === 'light' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', t);
-        try{ localStorage.setItem('as_theme', t); }catch(e){}
-        var meta=document.querySelector('meta[name="theme-color"]');
-        if(meta) meta.content = t==='light' ? '#f6f3ee' : '#000000';
-        // reels stays dark-first for video; light only softens chrome
-        document.body.style.background = t==='light' ? '#0a0a0b' : '#000';
+        try { localStorage.setItem('as_theme', t); } catch (e) {}
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', t === 'light' ? '#f4f0ea' : '#000000');
+        document.body.style.background = '';
+        var btn = document.getElementById('themeBtn');
+        if (btn) btn.setAttribute('aria-pressed', t === 'light' ? 'true' : 'false');
       }
-      var t='dark';
-      try{ t=localStorage.getItem('as_theme')||'dark'; }catch(e){}
+      var t = 'dark';
+      try { t = localStorage.getItem('as_theme') || 'dark'; } catch (e) {}
       apply(t);
-      var b=document.getElementById('themeBtn');
-      if(b) b.addEventListener('click', function(){
-        var cur=document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';
-        apply(cur==='light'?'dark':'light');
-      });
+      var b = document.getElementById('themeBtn');
+      if (b) {
+        b.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+          apply(cur === 'light' ? 'dark' : 'light');
+        });
+      }
     })();
   </script>
   <script src="/js/reels-feed.js"></script>
