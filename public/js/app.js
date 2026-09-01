@@ -222,15 +222,6 @@ async function renderPage() {
         <p class="prose">${escapeHtml(p2)}</p>
         <p class="prose muted-prose">${escapeHtml(p3)}</p>
       </div>
-      <div class="about-pillars">
-        <div class="pillar"><span class="pillar-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></svg></span><strong>Light</strong><span>Controlled, never harsh</span></div>
-        <div class="pillar"><span class="pillar-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.5"/><path d="M14 16l3-4 4 6H4"/></svg></span><strong>Frame</strong><span>Composition that breathes</span></div>
-        <div class="pillar"><span class="pillar-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12h16M12 4v16"/><circle cx="12" cy="12" r="8"/></svg></span><strong>Pace</strong><span>Still or motion, on purpose</span></div>
-      </div>
-      <div class="home-cta" style="margin-top:28px">
-        <a class="btn" href="/portfolio.html">View work</a>
-        <a class="btn btn-ghost" href="/contact.html">Contact</a>
-      </div>
     </div>`;
   } else if (page === 'portfolio') {
     const folio = await api('/portfolio');
