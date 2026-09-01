@@ -1793,7 +1793,7 @@ app.post('/api/v1/admin/reels/upload', uploadLimiter, auth, adminOnly, (req, res
   res.status(201).json({ item, ok: true, url: item.url });
   } catch (e) {
     console.error('reel upload', e);
-    res.status(500).json({ error: e.message || 'Upload failed' });
+    res.status(500).json({ error: 'Upload failed' });
   }
 });
 

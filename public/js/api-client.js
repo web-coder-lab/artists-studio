@@ -21,28 +21,42 @@
     const tok = getToken();
     if (tok) headers.Authorization = 'Bearer ' + tok;
 
-    const ctrl = new AbortController();
-    const ms = opts.timeoutMs || 45000;
-    const timer = setTimeout(() => ctrl.abort(), ms);
-
+    const method = String(opts.method || 'GET').toUpperCase();
+    const maxAttempts = opts.retry === false ? 1 : (method === 'GET' ? 2 : 1);
     let res;
-    try {
-      res = await fetch(API_BASE + path, {
-        ...opts,
-        headers,
-        credentials: 'include',
-        signal: ctrl.signal,
-        body:
-          opts.body != null && !(opts.body instanceof FormData) && typeof opts.body === 'object'
-            ? JSON.stringify(opts.body)
-            : opts.body
-      });
-    } catch (e) {
-      clearTimeout(timer);
-      if (e.name === 'AbortError') throw new Error('Request timed out. Check connection and try again.');
+    let lastNetErr = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const ctrl = new AbortController();
+      const ms = opts.timeoutMs || 45000;
+      const timer = setTimeout(() => ctrl.abort(), ms);
+      try {
+        res = await fetch(API_BASE + path, {
+          ...opts,
+          headers,
+          credentials: 'include',
+          signal: ctrl.signal,
+          body:
+            opts.body != null && !(opts.body instanceof FormData) && typeof opts.body === 'object'
+              ? JSON.stringify(opts.body)
+              : opts.body
+        });
+        clearTimeout(timer);
+        lastNetErr = null;
+        break;
+      } catch (e) {
+        clearTimeout(timer);
+        lastNetErr = e;
+        if (attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, 400 * attempt));
+          continue;
+        }
+      }
+    }
+    if (lastNetErr) {
+      if (lastNetErr.name === 'AbortError') throw new Error('Request timed out. Check connection and try again.');
       throw new Error('Network error. Check your connection.');
     }
-    clearTimeout(timer);
 
     let data = {};
     const ct = res.headers.get('content-type') || '';

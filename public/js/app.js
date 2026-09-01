@@ -278,11 +278,11 @@ async function renderPage() {
         e.stopPropagation();
         try {
           const id = btn.dataset.plike;
-          const r = await fetch('/api/v1/portfolio/' + id + '/like', {
+          const r = await api('/portfolio/' + id + '/like', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Guest-Id': guestId(), ...(token() ? { Authorization: 'Bearer ' + token() } : {}) },
-            body: '{}'
-          }).then((x) => x.json());
+            headers: { 'X-Guest-Id': guestId() },
+            body: {}
+          });
           const el = document.querySelector('[data-plc="' + id + '"]');
           if (el) el.textContent = r.likes || 0;
         } catch (err) { console.error(err); }
@@ -293,11 +293,11 @@ async function renderPage() {
         e.stopPropagation();
         try {
           const id = btn.dataset.psave;
-          const r = await fetch('/api/v1/portfolio/' + id + '/save', {
+          const r = await api('/portfolio/' + id + '/save', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Guest-Id': guestId(), ...(token() ? { Authorization: 'Bearer ' + token() } : {}) },
-            body: '{}'
-          }).then((x) => x.json());
+            headers: { 'X-Guest-Id': guestId() },
+            body: {}
+          });
           const el = document.querySelector('[data-psc="' + id + '"]');
           if (el) el.textContent = r.saves || 0;
         } catch (err) { console.error(err); }
