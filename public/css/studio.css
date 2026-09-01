@@ -699,3 +699,16 @@ a.license-link,.license-link{
   text-underline-offset:3px;
   font-weight:600;
 }
+
+/* API / document themed views */
+.doc-panel{margin-top:8px}
+.doc-note{color:var(--muted);line-height:1.6;margin:0 0 16px;font-size:.95rem}
+.doc-pre{
+  margin:0;padding:16px 18px;border-radius:16px;border:1px solid var(--line);
+  background:color-mix(in srgb, var(--bg-elev, #121214) 95%, transparent);
+  overflow:auto;max-height:min(70vh, 640px);
+  font-size:.78rem;line-height:1.55;color:var(--text);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+.doc-pre-wrap{white-space:pre-wrap;word-break:break-word}
+body[data-page="doc"] .legal-main{padding-bottom:48px}

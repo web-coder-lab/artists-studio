@@ -75,6 +75,163 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key', 'X-Requested-With']
 }));
 app.use(express.json({ limit: '32kb' }));
+
+
+/* ——— Browser theme shell for paths / API (content negotiation) ——— */
+function wantsHtml(req) {
+  if (req.headers['x-admin-key']) return false;
+  if (String(req.headers['x-requested-with'] || '').toLowerCase() === 'xmlhttprequest') return false;
+  if (req.query && String(req.query.format || '').toLowerCase() === 'json') return false;
+  const accept = String(req.headers.accept || '');
+  if (!accept || accept === '*/*') {
+    // curl default often */* — keep JSON for API under /api
+    if (String(req.path || '').startsWith('/api')) return false;
+  }
+  if (accept.includes('application/json') && !accept.includes('text/html')) return false;
+  return /text\/html/i.test(accept);
+}
+
+function escapeHtmlShell(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function studioShellPage({ title, eyebrow, lead, bodyHtml, statusCode }) {
+  const t = escapeHtmlShell(title || "Artist's Studio");
+  const eb = escapeHtmlShell(eyebrow || 'Studio');
+  const ld = escapeHtmlShell(lead || '');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="theme-color" content="#0a0a0b"/>
+  <meta name="robots" content="noindex"/>
+  <title>${t} — Artist's Studio</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/css/studio.css"/>
+</head>
+<body data-page="doc">
+  <div class="grain" aria-hidden="true"></div>
+  <div id="site-nav"></div>
+  <main class="legal-main doc-main">
+    <p class="eyebrow">${eb}</p>
+    <h1>${t}</h1>
+    ${ld ? `<p class="legal-updated">${ld}</p>` : ''}
+    <div class="doc-panel">${bodyHtml || ''}</div>
+    <p class="legal-nav">
+      <a href="/">Home</a><span class="dot">·</span>
+      <a href="/terms.html">Terms</a><span class="dot">·</span>
+      <a class="license-link" href="/license.html">License</a>
+    </p>
+  </main>
+  <div id="site-foot"></div>
+  <script src="/js/api-client.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    try {
+      var th = localStorage.getItem('as_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', th === 'light' ? 'light' : 'dark');
+    } catch (e) {}
+  </script>
+</body>
+</html>`;
+}
+
+function redactForHtml(value, depth) {
+  if (depth > 6) return '…';
+  if (value == null) return value;
+  if (Array.isArray(value)) return value.slice(0, 40).map((x) => redactForHtml(x, depth + 1));
+  if (typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      const lk = String(k).toLowerCase();
+      if (/(password|secret|token|hash|authorization|github_pat|admin_key|private)/i.test(lk)) {
+        out[k] = '—';
+        continue;
+      }
+      out[k] = redactForHtml(v, depth + 1);
+    }
+    return out;
+  }
+  return value;
+}
+
+function jsonAsThemedHtml(req, res, status, payload) {
+  const pathLabel = escapeHtmlShell(req.path || '/api');
+  const safe = redactForHtml(payload, 0);
+  let pretty = '';
+  try { pretty = escapeHtmlShell(JSON.stringify(safe, null, 2)); } catch (_) { pretty = '{}'; }
+  const html = studioShellPage({
+    title: 'Studio service',
+    eyebrow: 'Interface',
+    lead: pathLabel + (status && status !== 200 ? ' · ' + status : ''),
+    bodyHtml: `<p class="doc-note">This address is part of the studio interface. Authorized applications use it programmatically.</p>
+<pre class="doc-pre">${pretty}</pre>`
+  });
+  res.status(status || 200).type('html').send(html);
+}
+
+/** Wrap res.json so browser navigations get themed pages; clients still get JSON */
+function installJsonThemeShim() {
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    if (!wantsHtml(req)) return next();
+    const pathName = req.path || '';
+    const isApi = pathName.startsWith('/api/');
+    if (!isApi) return next();
+    const originalJson = res.json.bind(res);
+    res.json = (body) => {
+      if (res.headersSent) return originalJson(body);
+      return jsonAsThemedHtml(req, res, res.statusCode || 200, body);
+    };
+    next();
+  });
+}
+installJsonThemeShim();
+
+/** Themed HTML viewer for public text/meta docs when opened in a browser */
+const THEMED_TEXT_FILES = new Set([
+  'humans.txt', 'llms.txt', 'ai.txt', 'privacy.txt', 'terms.txt', 'copyright.txt',
+  'security.txt', 'robots.txt'
+]);
+app.get(['/humans.txt', '/llms.txt', '/ai.txt', '/privacy.txt', '/terms.txt', '/copyright.txt', '/security.txt', '/robots.txt'], (req, res, next) => {
+  if (!wantsHtml(req)) return next();
+  const base = path.basename(req.path);
+  if (!THEMED_TEXT_FILES.has(base)) return next();
+  const fp = path.join(ROOT, 'public', base);
+  fs.readFile(fp, 'utf8', (err, text) => {
+    if (err) return next();
+    const html = studioShellPage({
+      title: base,
+      eyebrow: 'Document',
+      lead: 'Public studio document',
+      bodyHtml: `<pre class="doc-pre doc-pre-wrap">${escapeHtmlShell(text)}</pre>`
+    });
+    res.type('html').send(html);
+  });
+});
+
+app.get(['/meta/build.txt', '/meta/version.dat'], (req, res, next) => {
+  if (!wantsHtml(req)) return next();
+  const rel = req.path.replace(/^\//, '');
+  const fp = path.join(ROOT, 'public', rel);
+  fs.readFile(fp, 'utf8', (err, text) => {
+    if (err) return next();
+    const html = studioShellPage({
+      title: path.basename(rel),
+      eyebrow: 'Build',
+      lead: 'Public version stamp',
+      bodyHtml: `<pre class="doc-pre">${escapeHtmlShell(text)}</pre>`
+    });
+    res.type('html').send(html);
+  });
+});
+
 // Never serve secrets / source / backups from web root
 app.use((req, res, next) => {
   const pth = (req.path || '').toLowerCase();
