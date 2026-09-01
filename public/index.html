@@ -22,33 +22,19 @@
   <div class="grain" aria-hidden="true"></div>
   <div id="site-nav"></div>
   <main class="home">
-    <div class="home-grid hero-stage">
+    <div class="home-grid hero-stage hero-text-only">
       <div class="hero-copy">
         <p class="eyebrow" id="tagline">Photography · Direction · Craft</p>
         <h1 id="heroTitle">A quiet space for work that holds attention.</h1>
         <p class="lede" id="heroSubtitle">Portfolio, reels, and a direct line when you are ready.</p>
+        <div class="hero-meta">
+          <div class="role" id="profileRole">Photographer &amp; Director</div>
+          <h2 class="hero-name" id="profileName">Studio Artist</h2>
+          <p class="hero-bio" id="profileBio">Work that holds still long enough to be felt.</p>
+        </div>
         <div class="home-cta">
           <a class="btn" href="/portfolio.html">View work</a>
           <a class="btn btn-ghost" href="/contact.html">Contact</a>
-        </div>
-      </div>
-      <div class="portrait-card hero-portrait-wrap" id="heroPortrait">
-        <div class="portrait-glow" aria-hidden="true"></div>
-        <div class="portrait-frame protect-media">
-          <img
-            src="/img/hero-portrait.png"
-            alt="Studio artist"
-            class="hero-photo"
-            draggable="false"
-            loading="eager"
-            decoding="async"
-          />
-          <div class="portrait-shield" aria-hidden="true"></div>
-        </div>
-        <div class="portrait-inner">
-          <div class="role" id="profileRole">Photographer &amp; Director</div>
-          <h2 id="profileName">Studio Artist</h2>
-          <p id="profileBio">Work that holds still long enough to be felt.</p>
         </div>
       </div>
     </div>
@@ -57,14 +43,5 @@
   <div id="site-modals"></div>
   <script src="/js/api-client.js"></script>
   <script src="/js/app.js"></script>
-  <script>
-    // Soft anti-download for hero portrait (not portfolio)
-    (function () {
-      const root = document.getElementById('heroPortrait');
-      if (!root) return;
-      root.addEventListener('contextmenu', (e) => e.preventDefault());
-      root.addEventListener('dragstart', (e) => e.preventDefault());
-    })();
-  </script>
 </body>
 </html>
