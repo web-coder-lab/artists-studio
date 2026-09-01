@@ -50,10 +50,11 @@ async function api(path, opts = {}) {
       throw e;
     }
   }
-  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json', ...(opts.headers || {}) };
   const t = token();
   if (t) headers.Authorization = 'Bearer ' + t;
-  const res = await fetch(API + path, { ...opts, headers });
+  const res = await fetch(API + path, { ...opts, headers, credentials: 'include' });
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
@@ -89,14 +90,6 @@ function navHtml() {
   </aside>
   <header class="nav site-top">
     <a class="brand nav-brand" href="${pageHref('home')}">Artist's <span>Studio</span></a>
-    <nav class="desk-nav" aria-label="Primary">
-      <a href="${pageHref('home')}" class="${page === 'home' ? 'active' : ''}">Home</a>
-      <a href="${pageHref('about')}" class="${page === 'about' ? 'active' : ''}">About</a>
-      <a href="${pageHref('portfolio')}" class="${page === 'portfolio' ? 'active' : ''}">Work</a>
-      <a href="${pageHref('reels')}" class="${page === 'reels' ? 'active' : ''}">Reels</a>
-      <a href="/services.html" class="${page === 'services' ? 'active' : ''}">Services</a>
-      <a href="${pageHref('contact')}" class="${page === 'contact' ? 'active' : ''}">Contact</a>
-    </nav>
     <div class="nav-actions" id="navActions"></div>
     <div class="nav-top-btns">
       <button type="button" class="nav-chip theme-toggle" id="themeToggle" title="Theme" aria-label="Toggle dark or light mode">
@@ -205,9 +198,18 @@ async function refreshSession() {
 
 async function loadSite() {
   if (!cache.site) {
-    const [siteRes, socials] = await Promise.all([api('/site'), api('/socials')]);
-    cache.site = siteRes.site || {};
-    cache.socials = socials.socials || {};
+    try {
+      const siteRes = await api('/site');
+      cache.site = siteRes.site || siteRes || {};
+    } catch (_) {
+      cache.site = cache.site || {};
+    }
+    try {
+      const socials = await api('/socials');
+      cache.socials = socials.socials || {};
+    } catch (_) {
+      cache.socials = cache.socials || {};
+    }
   }
   return cache;
 }
@@ -218,12 +220,18 @@ async function renderPage() {
 
   if (page === 'home') {
     applySiteCopy(site);
-    if ($('tagline')) $('tagline').textContent = site.tagline || '';
-    if ($('heroTitle')) $('heroTitle').textContent = site.hero_title || '';
-    if ($('heroSubtitle')) $('heroSubtitle').textContent = site.hero_subtitle || '';
-    if ($('profileName')) $('profileName').textContent = site.profile_name || '';
-    if ($('profileRole')) $('profileRole').textContent = site.profile_role || '';
-    if ($('profileBio')) $('profileBio').textContent = site.profile_bio || '';
+    const setIf = (id, val) => {
+      const el = $(id);
+      if (!el) return;
+      const v = (val != null && String(val).trim()) ? String(val) : null;
+      if (v) el.textContent = v;
+    };
+    setIf('tagline', site.tagline);
+    setIf('heroTitle', site.hero_title);
+    setIf('heroSubtitle', site.hero_subtitle);
+    setIf('profileName', site.profile_name);
+    setIf('profileRole', site.profile_role);
+    setIf('profileBio', site.profile_bio);
     const work = document.querySelector('.home-cta a.btn:not(.btn-ghost)');
     const contact = document.querySelector('.home-cta a.btn-ghost');
     if (work) work.textContent = copyOf('home', 'cta_work', 'View work');

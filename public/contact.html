@@ -35,7 +35,7 @@
   <script>
     (async () => {
       try {
-        const d = await fetch('/api/v1/site').then(r => r.json());
+        const d = await fetch('/api/v1/site', { headers: { 'Accept': 'application/json' }, credentials: 'include' }).then(r => r.json());
         const c = (d.site && d.site.copy && d.site.copy.contact) || {};
         if (c.eyebrow) document.getElementById('cEyebrow').textContent = c.eyebrow;
         if (c.title) document.getElementById('cTitle').textContent = c.title;
@@ -59,7 +59,14 @@
       }
 
       try {
-        const data = await fetch('/api/v1/socials').then(r => r.json());
+        let data;
+        if (window.StudioAPI) data = await StudioAPI.api('/socials');
+        else {
+          const r = await fetch('/api/v1/socials', { headers: { 'Accept': 'application/json' }, credentials: 'include' });
+          const ctype = r.headers.get('content-type') || '';
+          if (!r.ok || !ctype.includes('application/json')) throw new Error('bad socials');
+          data = await r.json();
+        }
         const s = data.socials || {};
         const wa = String(s.whatsapp || '').replace(/\D/g, '');
         const email = s.email || '';

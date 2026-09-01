@@ -18,6 +18,7 @@
     const headers = Object.assign({ 'Content-Type': 'application/json' }, (opts && opts.headers) || {});
     const token = localStorage.getItem('as_token');
     if (token) headers.Authorization = 'Bearer ' + token;
+    headers['Accept'] = headers['Accept'] || 'application/json';
     return fetch('/api/v1' + path, {
       method: (opts && opts.method) || 'GET',
       headers,

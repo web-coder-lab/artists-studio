@@ -1,3 +1,6 @@
+/* desk-nav hidden by default — only desktop shell shows it */
+/* base hide handled in studio.css */
+
 /* ——— Desktop shell (≥1024 via data-shell) ——— */
 @media (min-width: 1024px) {
   html[data-shell="desktop"] {

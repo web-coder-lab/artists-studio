@@ -15,6 +15,9 @@
 
   async function api(path, opts = {}) {
     const headers = { ...(opts.headers || {}) };
+    if (!headers['Accept'] && !headers['accept']) {
+      headers['Accept'] = 'application/json';
+    }
     if (!(opts.body instanceof FormData) && opts.body != null && !headers['Content-Type']) {
       headers['Content-Type'] = 'application/json';
     }

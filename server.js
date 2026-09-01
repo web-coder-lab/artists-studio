@@ -79,22 +79,19 @@ app.use(express.json({ limit: '32kb' }));
 
 /* ——— Browser theme shell for paths / API (content negotiation) ——— */
 function wantsHtml(req) {
+  // Never theme real API clients (fetch / APK / curl json)
   if (req.headers['x-admin-key']) return false;
   if (String(req.headers['x-requested-with'] || '').toLowerCase() === 'xmlhttprequest') return false;
   if (req.query && String(req.query.format || '').toLowerCase() === 'json') return false;
   const accept = String(req.headers.accept || '').toLowerCase();
-  // Explicit JSON-only clients
-  if (accept.includes('application/json') && !accept.includes('text/html')) return false;
-  // Browser document navigation
+  // Any application/json in Accept → JSON (browsers often send json+html together on fetch)
+  if (accept.includes('application/json')) return false;
   const dest = String(req.headers['sec-fetch-dest'] || '').toLowerCase();
   const mode = String(req.headers['sec-fetch-mode'] || '').toLowerCase();
+  // Only full document navigations get HTML shells
   if (dest === 'document' || mode === 'navigate') return true;
-  if (accept.includes('text/html')) return true;
-  // Common browsers opening plain URLs without strong Accept
-  const ua = String(req.headers['user-agent'] || '');
-  if (/Mozilla\/|Chrome\/|Safari\/|Edg\/|Firefox\//i.test(ua) && !accept.includes('application/json')) {
-    return true;
-  }
+  if (dest === 'empty' || dest === '' || mode === 'cors' || mode === 'no-cors') return false;
+  if (accept.includes('text/html') && !accept.includes('*/*')) return true;
   return false;
 }
 

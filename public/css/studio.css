@@ -1,3 +1,33 @@
+
+/* Mobile-first: never show desktop link row under 1024px */
+.desk-nav,
+.desk-nav-reels {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+@media (min-width: 1024px) {
+  html[data-shell="desktop"] .desk-nav {
+    display: flex !important;
+    visibility: visible !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    pointer-events: auto !important;
+  }
+  html[data-shell="desktop"] .desk-nav-reels {
+    display: flex !important;
+    visibility: visible !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    pointer-events: auto !important;
+  }
+}
+
 :root {
   --bg: #050506;
   --bg-elev: #0c0c0e;
@@ -712,3 +742,5 @@ a.license-link,.license-link{
 }
 .doc-pre-wrap{white-space:pre-wrap;word-break:break-word}
 body[data-page="doc"] .legal-main{padding-bottom:48px}
+
+/* mobile: never show desktop nav links */
