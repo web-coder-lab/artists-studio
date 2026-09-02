@@ -344,7 +344,7 @@
         const el = document.querySelector('[data-cc="' + activeReelId + '"]');
         if (el) el.textContent = String((+el.textContent || 0) + 1);
       } catch (err) {
-        alert(err.message || 'Could not post');
+        alert((err && err.message) ? err.message : 'Could not post comment');
       }
     };
   }

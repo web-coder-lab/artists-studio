@@ -2179,33 +2179,37 @@ app.post('/api/v1/reels/:id/save', engageLimiter, auth, (req, res) => {
   res.json({ saved, saves: db.reel_saves.filter((x) => x.reel_id === id).length });
 });
 
-app.post('/api/v1/reels/:id/comments', engageLimiter, requireCaptcha, auth, (req, res) => {
+app.post('/api/v1/reels/:id/comments', engageLimiter, authOptional, (req, res) => {
   const body = String(req.body?.body || '').trim();
-  if (!body) return res.status(400).json({ error: 'Comment required' });
+  if (!body || body.length > 500) return res.status(400).json({ error: 'Comment required (max 500)' });
   const db = load();
   const id = +req.params.id;
   if (!(db.reels || []).some((r) => r.id === id)) return res.status(404).json({ error: 'Not found' });
   db.reel_comments = db.reel_comments || [];
   if (db._seq.reel_comments == null) db._seq.reel_comments = db.reel_comments.length;
+  const u = req.user || null;
+  const guestName = String(req.body?.name || '').trim().slice(0, 40) || 'Guest';
   const c = {
     id: ++db._seq.reel_comments,
     reel_id: id,
-    user_id: req.user.id,
-    username: req.user.username,
-    name: req.user.name,
+    user_id: u ? u.id : null,
+    username: u ? u.username : 'guest',
+    name: u ? (u.name || u.username) : guestName,
     body,
     created_at: new Date().toISOString()
   };
   db.reel_comments.push(c);
   save(db);
   const reel = (db.reels || []).find((r) => r.id === id);
-  notifyAdminEngagement('reel_comment', {
-    reel_id: id,
-    title: reel?.title,
-    username: req.user.username,
-    name: req.user.name,
-    text: `${req.user.name || req.user.username} commented on "${reel?.title || id}": ${body.slice(0, 80)}`
-  });
+  try {
+    notifyAdminEngagement('reel_comment', {
+      reel_id: id,
+      title: reel?.title,
+      username: c.username,
+      name: c.name,
+      text: `${c.name} commented on "${reel?.title || id}": ${body.slice(0, 80)}`
+    });
+  } catch (_) {}
   res.status(201).json({ comment: c });
 });
 

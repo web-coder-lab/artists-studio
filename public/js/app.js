@@ -67,11 +67,12 @@ function escapeHtml(s) {
 function navHtml() {
   const links = [
     [pageHref('home'), 'home', 'Home', `<svg class="nav-ico" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>`],
-    [pageHref('about'), 'about', 'About', `<svg class="nav-ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 19.5c1.2-3.2 3.7-4.8 7-4.8s5.8 1.6 7 4.8"/></svg>`],
-    [pageHref('portfolio'), 'portfolio', 'Portfolio', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`],
     [pageHref('reels'), 'reels', 'Reels', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 8 6 4-6 4V8z"/></svg>`],
+    [pageHref('saved'), 'saved', 'Saved', `<svg class="nav-ico" viewBox="0 0 24 24"><path d="M7 4h10a1 1 0 0 1 1 1v15l-6-3.5L6 20V5a1 1 0 0 1 1-1z"/></svg>`],
+    [pageHref('portfolio'), 'portfolio', 'Portfolio', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`],
     [pageHref('services'), 'services', 'Services', `<svg class="nav-ico" viewBox="0 0 24 24"><path d="M12 3.5 13.8 9H19l-4 3.2 1.5 5.3L12 14.8 7.5 17.5 9 12.2 5 9h5.2L12 3.5z"/></svg>`],
     [pageHref('contact'), 'contact', 'Contact', `<svg class="nav-ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 8 8 6 8-6"/></svg>`],
+    [pageHref('about'), 'about', 'About', `<svg class="nav-ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 19.5c1.2-3.2 3.7-4.8 7-4.8s5.8 1.6 7 4.8"/></svg>`],
   ];
   const drawerLinks = links.map(([href, key, label, ico]) =>
     `<a class="nav-drawer-link${page === key ? ' active' : ''}" href="${href}">${ico}<span>${label}</span></a>`
@@ -80,7 +81,7 @@ function navHtml() {
   <div class="nav-scrim" id="navScrim" hidden></div>
   <aside class="nav-drawer" id="navDrawer" aria-hidden="true">
     <div class="nav-drawer-head">
-      <strong class="nav-drawer-title">Navigate</strong>
+      <strong class="nav-drawer-title">Menu</strong>
       <button type="button" class="nav-chip" id="navClose" aria-label="Close menu">
         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
@@ -258,6 +259,32 @@ async function renderPage() {
         <p class="prose muted-prose">${escapeHtml(p3)}</p>
       </div>
     </div>`;
+  } else if (page === 'saved') {
+    root.innerHTML = `<div class="page-hero"><p class="eyebrow">Library</p>
+      <h1>Saved</h1>
+      <p class="muted" style="max-width:32ch;margin:8px auto 0;line-height:1.55">Photos and reels you save on this device stay here.</p>
+    </div>
+    <div id="savedRoot" class="folio-grid" style="min-height:120px"></div>`;
+    const box = document.getElementById('savedRoot');
+    try {
+      const raw = localStorage.getItem('as_saved_media');
+      const items = raw ? JSON.parse(raw) : [];
+      if (!items.length) {
+        box.innerHTML = '<p class="muted" style="grid-column:1/-1;text-align:center;padding:32px 12px">Nothing saved yet. Use Save on portfolio or reels.</p>';
+      } else {
+        box.innerHTML = items.map((it, i) => {
+          const img = escapeHtml(it.image || it.thumb || it.url || '');
+          const title = escapeHtml(it.title || 'Saved');
+          const href = it.type === 'reel' ? pageHref('reels') : pageHref('portfolio');
+          return `<a class="folio-card" href="${href}" style="text-decoration:none;color:inherit">
+            ${img ? `<img src="${img}" alt="${title}" loading="lazy" decoding="async"/>` : ''}
+            <div class="folio-meta"><h3>${title}</h3><p>${escapeHtml(it.type || 'item')}</p></div>
+          </a>`;
+        }).join('');
+      }
+    } catch (e) {
+      box.innerHTML = '<p class="muted" style="grid-column:1/-1;text-align:center">Could not load saved items.</p>';
+    }
   } else if (page === 'portfolio') {
     const folio = await api('/portfolio');
     const items = folio.items || [];
@@ -265,7 +292,7 @@ async function renderPage() {
       ${items.length ? '' : `<p class="muted" style="text-align:center;padding:40px">${escapeHtml(copyOf('portfolio','empty','No work published yet.'))}</p>`}
       <div class="folio-grid">${items.map((it, i) => `
         <article class="folio-card" data-lightbox="${i}" role="button" tabindex="0">
-          <img src="${escapeHtml(it.image || it.url || '')}" alt="${escapeHtml(it.title || '')}" loading="lazy"/>
+          <img src="${escapeHtml(it.image || it.url || '')}" alt="${escapeHtml(it.title || '')}" loading="lazy" decoding="async" sizes="(max-width:720px) 45vw, 280px"/>
           <div class="folio-meta"><h3>${escapeHtml(it.title || '')}</h3>
           <p>${escapeHtml(it.category || '')}${it.caption ? ' · ' + escapeHtml(it.caption) : ''}</p>
           <div class="folio-actions">
