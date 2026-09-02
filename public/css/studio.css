@@ -788,3 +788,72 @@ body[data-page="home"] .home-cta{
   display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;
 }
 body[data-page="home"] .home-cta .btn{flex:1;min-width:140px;text-align:center;justify-content:center}
+
+/* Facebook-style portfolio feed (mobile-first) */
+.fb-feed{
+  max-width:520px;margin:0 auto;padding:8px 12px 96px;
+  display:flex;flex-direction:column;gap:14px;
+}
+.fb-post{
+  border:1px solid var(--line);border-radius:16px;background:var(--bg-elev);
+  overflow:hidden;animation:fadeUp .45s ease both;
+}
+.fb-post:nth-child(2){animation-delay:.05s}
+.fb-post:nth-child(3){animation-delay:.1s}
+.fb-head{display:flex;align-items:center;gap:12px;padding:14px 14px 8px}
+.fb-avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),#8a6b3d);
+  color:#0a0a0b;font-weight:700;font-size:.85rem;
+  display:grid;place-items:center;flex-shrink:0;
+}
+.fb-who{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fb-who strong{font-size:.95rem;color:var(--text)}
+.fb-who span{font-size:.78rem;color:var(--muted)}
+.fb-text{
+  margin:0;padding:0 14px 10px;font-size:.95rem;line-height:1.55;color:var(--text);
+  white-space:pre-wrap;word-break:break-word;
+}
+.fb-media{background:#000;cursor:pointer}
+.fb-media img{
+  width:100%;max-height:min(70vh,520px);object-fit:contain;display:block;
+  background:#0a0a0b;margin:0 auto;
+}
+.fb-stats{
+  display:flex;gap:6px;align-items:center;padding:10px 14px 6px;
+  font-size:.82rem;color:var(--muted);
+}
+.fb-dot{opacity:.5}
+.fb-actions{
+  display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);
+}
+.fb-btn{
+  border:0;background:transparent;color:var(--muted);padding:12px 8px;
+  font-size:.9rem;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.fb-btn:hover,.fb-btn.on{color:var(--accent)}
+.fb-btn + .fb-btn{border-left:1px solid var(--line)}
+
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:none}
+}
+@keyframes fadeIn{
+  from{opacity:0} to{opacity:1}
+}
+@keyframes riseIn{
+  from{opacity:0;transform:translateY(18px)}
+  to{opacity:1;transform:none}
+}
+
+/* home-anim */
+body[data-page="home"] .hero-copy .eyebrow{animation:fadeIn .6s ease both}
+body[data-page="home"] .hero-copy h1{animation:riseIn .7s ease .08s both}
+body[data-page="home"] .hero-copy .lede{animation:riseIn .7s ease .16s both}
+body[data-page="home"] .hero-meta{animation:riseIn .7s ease .24s both}
+body[data-page="home"] .home-cta{animation:riseIn .7s ease .32s both}
+body[data-page="home"] .home-cta .btn{
+  transition:transform .2s ease, box-shadow .2s ease, filter .2s;
+}
+body[data-page="home"] .home-cta .btn:active{transform:scale(.98)}

@@ -288,17 +288,31 @@ async function renderPage() {
   } else if (page === 'portfolio') {
     const folio = await api('/portfolio');
     const items = folio.items || [];
-    root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:8px"><p class="eyebrow">${escapeHtml(copyOf('portfolio','eyebrow','Selected work'))}</p><h1>${escapeHtml(copyOf('portfolio','title','Portfolio'))}</h1></div>
-      ${items.length ? '' : `<p class="muted" style="text-align:center;padding:40px">${escapeHtml(copyOf('portfolio','empty','No work published yet.'))}</p>`}
-      <div class="folio-grid">${items.map((it, i) => `
-        <article class="folio-card" data-lightbox="${i}" role="button" tabindex="0">
-          <img src="${escapeHtml(it.image || it.url || '')}" alt="${escapeHtml(it.title || '')}" loading="lazy" decoding="async" sizes="(max-width:720px) 45vw, 280px"/>
-          <div class="folio-meta"><h3>${escapeHtml(it.title || '')}</h3>
-          <p>${escapeHtml(it.category || '')}${it.caption ? ' · ' + escapeHtml(it.caption) : ''}</p>
-          <div class="folio-actions">
-            <button type="button" class="chip" data-plike="${it.id}">♥ <span data-plc="${it.id}">${it.likes || 0}</span></button>
-            <button type="button" class="chip" data-psave="${it.id}">Save <span data-psc="${it.id}">${it.saves || 0}</span></button>
-          </div></div>
+    root.innerHTML = `<div class="page-hero" style="padding-bottom:6px"><p class="eyebrow">${escapeHtml(copyOf('portfolio','eyebrow','Selected work'))}</p>
+      <h1>${escapeHtml(copyOf('portfolio','title','Portfolio'))}</h1></div>
+      ${items.length ? '' : `<p class="muted" style="text-align:center;padding:40px 16px">${escapeHtml(copyOf('portfolio','empty','No work published yet.'))}</p>`}
+      <div class="fb-feed">${items.map((it, i) => `
+        <article class="fb-post" data-id="${it.id}">
+          <header class="fb-head">
+            <div class="fb-avatar" aria-hidden="true">AS</div>
+            <div class="fb-who">
+              <strong>Artist's Studio</strong>
+              <span>${escapeHtml(it.category || 'Portfolio')}</span>
+            </div>
+          </header>
+          ${it.caption || it.title ? `<p class="fb-text">${escapeHtml(it.caption || it.title || '')}</p>` : ''}
+          <div class="fb-media" role="button" tabindex="0" data-open="${i}">
+            <img src="${escapeHtml(it.image || it.url || '')}" alt="${escapeHtml(it.title || '')}" loading="lazy" decoding="async"/>
+          </div>
+          <div class="fb-stats">
+            <span data-plc="${it.id}">${it.likes || 0} likes</span>
+            <span class="fb-dot">·</span>
+            <span data-psc="${it.id}">${it.saves || 0} saves</span>
+          </div>
+          <div class="fb-actions">
+            <button type="button" class="fb-btn" data-plike="${it.id}">Like</button>
+            <button type="button" class="fb-btn" data-psave="${it.id}">Save</button>
+          </div>
         </article>`).join('')}</div>
       <div class="lightbox hidden" id="lightbox" aria-modal="true" role="dialog">
         <button type="button" class="lightbox-x" id="lbClose" aria-label="Close">×</button>
@@ -318,27 +332,23 @@ async function renderPage() {
       $('lbCap').textContent = [it.title, it.caption].filter(Boolean).join(' — ');
       lb.classList.remove('hidden');
     };
-    root.querySelectorAll('[data-lightbox]').forEach((el) => {
-      el.addEventListener('click', () => show(+el.dataset.lightbox));
-      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') show(+el.dataset.lightbox); });
+    root.querySelectorAll('[data-open]').forEach((el) => {
+      el.addEventListener('click', () => show(+el.dataset.open));
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') show(+el.dataset.open); });
     });
     $('lbClose')?.addEventListener('click', () => lb.classList.add('hidden'));
     $('lbPrev')?.addEventListener('click', () => show(li - 1));
     $('lbNext')?.addEventListener('click', () => show(li + 1));
     lb?.addEventListener('click', (e) => { if (e.target === lb) lb.classList.add('hidden'); });
-    // portfolio like/save
     root.querySelectorAll('[data-plike]').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         try {
           const id = btn.dataset.plike;
-          const r = await api('/portfolio/' + id + '/like', {
-            method: 'POST',
-            headers: { 'X-Guest-Id': guestId() },
-            body: {}
-          });
+          const r = await api('/portfolio/' + id + '/like', { method: 'POST', headers: { 'X-Guest-Id': guestId() }, body: {} });
           const el = document.querySelector('[data-plc="' + id + '"]');
-          if (el) el.textContent = r.likes || 0;
+          if (el) el.textContent = (r.likes || 0) + ' likes';
+          btn.classList.toggle('on', !!r.liked);
         } catch (err) { console.error(err); }
       });
     });
@@ -347,23 +357,25 @@ async function renderPage() {
         e.stopPropagation();
         try {
           const id = btn.dataset.psave;
-          const r = await api('/portfolio/' + id + '/save', {
-            method: 'POST',
-            headers: { 'X-Guest-Id': guestId() },
-            body: {}
-          });
+          const r = await api('/portfolio/' + id + '/save', { method: 'POST', headers: { 'X-Guest-Id': guestId() }, body: {} });
           const el = document.querySelector('[data-psc="' + id + '"]');
-          if (el) el.textContent = r.saves || 0;
+          if (el) el.textContent = (r.saves || 0) + ' saves';
+          btn.classList.toggle('on', !!r.saved);
+          try {
+            const item = items.find((x) => String(x.id) === String(id));
+            if (item && r.saved) {
+              const list = JSON.parse(localStorage.getItem('as_saved_media') || '[]');
+              if (!list.some((x) => String(x.id) === String(item.id) && x.type === 'photo')) {
+                list.unshift({ id: item.id, type: 'photo', title: item.title, image: item.image || item.url });
+                localStorage.setItem('as_saved_media', JSON.stringify(list.slice(0, 80)));
+              }
+            }
+          } catch (_) {}
         } catch (err) { console.error(err); }
       });
     });
-    document.addEventListener('keydown', function lbKeys(e) {
-      if (lb.classList.contains('hidden')) return;
-      if (e.key === 'Escape') lb.classList.add('hidden');
-      if (e.key === 'ArrowLeft') show(li - 1);
-      if (e.key === 'ArrowRight') show(li + 1);
-    });
   } else if (page === 'reels') {
+
     const reels = await api('/reels');
     root.innerHTML = `<div class="page-hero" style="max-width:none;padding-bottom:8px"><p class="eyebrow">${escapeHtml(copyOf('reels','eyebrow','Motion'))}</p><h1>${escapeHtml(copyOf('reels','title','Reels'))}</h1></div>
       <div class="reels-row">${(reels.items || []).map((r) => `

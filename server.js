@@ -333,7 +333,7 @@ function isMobileDevice(req) {
 
 const PAGE_BASES = new Set([
   'home', 'about', 'portfolio', 'reels', 'services', 'contact',
-  'terms', 'privacy', 'license', 'policies', 'offline'
+  'terms', 'privacy', 'license', 'policies', 'offline', 'saved'
 ]);
 
 const LEGACY_MAP = {
@@ -351,7 +351,7 @@ const LEGACY_MAP = {
   '/offline.html': 'offline',
   '/account.html': 'contact',
   '/chat.html': 'contact',
-  '/saved.html': 'reels'
+  '/saved.html': 'saved'
 };
 
 app.use((req, res, next) => {
